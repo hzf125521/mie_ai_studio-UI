@@ -1,0 +1,5 @@
+{
+  "name": "ML Model Trainer",
+  "description": "A web interface for machine learning model training, validation, and deployment workflow.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,397 @@
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useApp } from '../context/AppContext';
+import { TimeSeriesChart } from '../components/charts/TimeSeriesChart';
+import { PCAChart } from '../components/charts/PCAChart';
+import { ThreeDScatterChart } from '../components/charts/ThreeDScatterChart';
+import { Plus, Trash2, Calendar, Activity, Edit2, Check, X, Search, ChevronDown } from 'lucide-react';
+import { cn } from '../lib/utils';
+import { SignalInfoTooltip } from '../components/SignalInfoTooltip';
+
+// Mock measurement points and features
+const MEASUREMENT_POINTS = [
+  { id: 'PointA', name: 'Measurement Point A', features: ['Temp', 'Pressure', 'Vibration'] },
+  { id: 'PointB', name: 'Measurement Point B', features: ['Speed', 'Current', 'Voltage'] },
+];
+
+const MultiSelect: React.FC<{
+  label: string;
+  options: string[];
+  selected: string[];
+  onChange: (selected: string[]) => void;
+}> = ({ label, options, selected, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const toggleOption = (option: string) => {
+    if (selected.includes(option)) {
+      onChange(selected.filter(s => s !== option));
+    } else {
+      onChange([...selected, option]);
+    }
+  };
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full bg-white border border-gray-300 rounded-md py-1.5 px-3 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-xs flex justify-between items-center"
+      >
+        <span className="block truncate">
+          {selected.length === 0 ? 'Select features...' : `${selected.length} selected`}
+        </span>
+        <ChevronDown className="h-4 w-4 text-gray-400" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+          {options.map((option) => (
+            <div
+              key={option}
+              className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-indigo-50"
+              onClick={() => toggleOption(option)}
+            >
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mr-3"
+                  checked={selected.includes(option)}
+                  readOnly
+                />
+                <span className="block truncate font-normal text-xs">
+                  {option}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const Step1: React.FC = () => {
+  const { signals, addSignal, updateSignal, removeSignal } = useApp();
+  const [selectedSignalIds, setSelectedSignalIds] = useState<string[]>([]);
+  
+  // New Signal State
+  const [startTime, setStartTime] = useState('2023-01-01T00:00');
+  const [endTime, setEndTime] = useState('2023-01-02T00:00');
+  const [selectedFeatures, setSelectedFeatures] = useState<Record<string, string[]>>({});
+
+  // Filter State
+  const [filterName, setFilterName] = useState('');
+  const [filterDate, setFilterDate] = useState('');
+
+  // Editing State
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+
+  const handleFeatureChange = (pointId: string, features: string[]) => {
+    setSelectedFeatures(prev => ({ ...prev, [pointId]: features }));
+  };
+
+  const handleAddSignal = () => {
+    const now = new Date();
+    const timeString = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+    const name = `Signal_${timeString}`;
+    
+    // Check for duplicate name (though unlikely with timestamp)
+    if (signals.some(s => s.name === name)) {
+      alert('Signal name already exists. Please try again.');
+      return;
+    }
+
+    const flatFeatures = Object.entries(selectedFeatures).flatMap(([pointId, feats]) => 
+      (feats as string[]).map(f => `${pointId}_${f}`)
+    );
+
+    if (flatFeatures.length === 0) {
+      alert('Please select at least one feature.');
+      return;
+    }
+
+    const id = `sig-${Date.now()}`;
+    // Generate data
+    const mockData = Array.from({ length: 50 }, (_, i) => {
+      const point: any = { time: i };
+      flatFeatures.forEach((feature, idx) => {
+        point[feature] = Math.sin(i * 0.2 + idx) + Math.random() * 0.2;
+      });
+      point.x = Math.random() * 10;
+      point.y = Math.random() * 10;
+      point.z = Math.random() * 10;
+      point.anomalyScore = Math.random();
+      point.type = Math.random() > 0.9 ? 'Anomaly' : 'Normal';
+      return point;
+    });
+
+    addSignal({
+      id,
+      name,
+      createdAt: now.toISOString(),
+      timeRange: [startTime, endTime],
+      features: flatFeatures,
+      data: mockData,
+    });
+  };
+
+  const toggleSignalSelection = (id: string) => {
+    if (selectedSignalIds.includes(id)) {
+      setSelectedSignalIds(selectedSignalIds.filter(sid => sid !== id));
+    } else {
+      if (selectedSignalIds.length >= 5) {
+        alert('You can select up to 5 signals.');
+        return;
+      }
+      setSelectedSignalIds([...selectedSignalIds, id]);
+    }
+  };
+
+  const startEditing = (signal: any) => {
+    setEditingId(signal.id);
+    setEditName(signal.name);
+  };
+
+  const saveEditing = (id: string) => {
+    if (signals.some(s => s.name === editName && s.id !== id)) {
+      alert('Signal name already exists.');
+      return;
+    }
+    updateSignal(id, { name: editName });
+    setEditingId(null);
+  };
+
+  const filteredSignals = signals.filter(s => {
+    const matchName = s.name.toLowerCase().includes(filterName.toLowerCase());
+    const matchDate = filterDate ? s.createdAt.startsWith(filterDate) : true;
+    return matchName && matchDate;
+  });
+
+  // Determine which signals to show in right panel
+  const displaySignals = useMemo(() => {
+    if (selectedSignalIds.length > 0) {
+      // Show selected signals
+      return signals.filter(s => selectedSignalIds.includes(s.id));
+    } else {
+      // Show 3 newest signals
+      return [...signals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 3);
+    }
+  }, [selectedSignalIds, signals]);
+
+  return (
+    <div className="flex h-full gap-6">
+      {/* Left Sidebar */}
+      <div className="w-96 flex-shrink-0 bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col gap-6">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Plus className="w-5 h-5 text-indigo-600" /> Add Signals
+          </h2>
+          <div className="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
+            {MEASUREMENT_POINTS.map(point => (
+              <MultiSelect
+                key={point.id}
+                label={point.name}
+                options={point.features}
+                selected={selectedFeatures[point.id] || []}
+                onChange={(features) => handleFeatureChange(point.id, features)}
+              />
+            ))}
+            
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Start Time</label>
+                <input
+                  type="datetime-local"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">End Time</label>
+                <input
+                  type="datetime-local"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs"
+                />
+              </div>
+            </div>
+            <button
+              onClick={handleAddSignal}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Add Signal
+            </button>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-200 pt-4 flex-1 flex flex-col min-h-0">
+          <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-gray-500" /> Regular Signals
+          </h3>
+          
+          {/* Filters */}
+          <div className="mb-3 space-y-2">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search by name..."
+                value={filterName}
+                onChange={(e) => setFilterName(e.target.value)}
+                className="w-full pl-8 pr-2 py-1 border border-gray-300 rounded-md text-xs"
+              />
+              <Search className="w-3 h-3 text-gray-400 absolute left-2.5 top-2" />
+            </div>
+            <input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs"
+            />
+          </div>
+
+          <div className="flex-1 overflow-y-auto pr-1">
+            <ul className="space-y-2">
+              {filteredSignals.map((signal) => (
+                <li 
+                  key={signal.id} 
+                  className={cn(
+                    "group flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer",
+                    selectedSignalIds.includes(signal.id) 
+                      ? "bg-indigo-50 border-indigo-300 ring-1 ring-indigo-300" 
+                      : "bg-white border-gray-200 hover:border-indigo-200 hover:bg-gray-50"
+                  )}
+                  onClick={() => toggleSignalSelection(signal.id)}
+                >
+                  <div className="flex flex-col flex-1 min-w-0 mr-2">
+                    {editingId === signal.id ? (
+                      <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                        <input 
+                          type="text" 
+                          value={editName} 
+                          onChange={e => setEditName(e.target.value)}
+                          className="w-full px-1 py-0.5 text-xs border border-indigo-300 rounded"
+                          autoFocus
+                        />
+                        <button onClick={() => saveEditing(signal.id)} className="text-green-600"><Check className="w-3 h-3" /></button>
+                        <button onClick={() => setEditingId(null)} className="text-red-500"><X className="w-3 h-3" /></button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-900 truncate" title={signal.name}>{signal.name}</span>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); startEditing(signal); }}
+                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-indigo-600"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                    <span className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                      <Calendar className="w-3 h-3" /> {new Date(signal.createdAt).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })}
+                    </span>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeSignal(signal.id); }}
+                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-opacity"
+                    title="Remove Signal"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </li>
+              ))}
+              {filteredSignals.length === 0 && (
+                <li className="text-sm text-gray-400 text-center py-4 italic">No signals found.</li>
+              )}
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+        {displaySignals.map((signal) => (
+          <div key={signal.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transition-all hover:shadow-md">
+            <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-gray-900">{signal.name}</h3>
+                <SignalInfoTooltip signal={signal} />
+              </div>
+              <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-600">
+                Created: {new Date(signal.createdAt).toLocaleString()}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="h-72 flex flex-col">
+                <h3 className="text-sm font-medium text-gray-500 mb-2">Multi-Feature Time Domain</h3>
+                <div className="flex-1">
+                  <TimeSeriesChart data={signal.data} features={signal.features} />
+                </div>
+              </div>
+              <div className="h-72 flex flex-col">
+                <div className="flex justify-between items-center mb-2 px-2">
+                  <h3 className="text-sm font-medium text-gray-500">PCA Projection</h3>
+                </div>
+                <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden relative">
+                   <ChartContainer data={signal.data} />
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+        {displaySignals.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full text-gray-400">
+            <Activity className="w-16 h-16 mb-4 opacity-20" />
+            <p className="text-lg">No signals to display.</p>
+            <p className="text-sm">Select signals from the left or add new ones.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const ChartContainer: React.FC<{ data: any[] }> = ({ data }) => {
+  const [is3D, setIs3D] = useState(false);
+  
+  // Unify data type for Step 1 to avoid Normal/Anomaly distinction
+  const unifiedData = useMemo(() => data.map(d => ({ ...d, type: 'Data' })), [data]);
+
+  return (
+    <>
+      <div className="absolute top-2 right-2 z-10 flex space-x-2 text-xs bg-white/80 p-1 rounded shadow-sm">
+        <button
+          onClick={() => setIs3D(false)}
+          className={`px-2 py-1 rounded ${!is3D ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}
+        >
+          2D
+        </button>
+        <button
+          onClick={() => setIs3D(true)}
+          className={`px-2 py-1 rounded ${is3D ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}
+        >
+          3D
+        </button>
+      </div>
+      {is3D ? (
+        <ThreeDScatterChart data={unifiedData} />
+      ) : (
+        <PCAChart data={unifiedData} />
+      )}
+    </>
+  );
+};
+
