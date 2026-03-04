@@ -42,6 +42,7 @@ export const Step4: React.FC = () => {
   const { models, signals, deployedModelId, setDeployedModelId, validations } = useApp();
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [isDeploying, setIsDeploying] = useState(false);
+  const [selectedValidationId, setSelectedValidationId] = useState<string | null>(null);
 
   const readyModels = useMemo(() => {
     return models.filter(m => 
@@ -68,6 +69,23 @@ export const Step4: React.FC = () => {
     if (!displayModel) return [];
     return signals.filter(s => displayModel.trainSignalIds?.includes(s.id));
   }, [displayModel, signals]);
+
+  const modelValidations = useMemo(() => {
+    if (!displayModel) return [];
+    return validations.filter(v => v.modelId === displayModel.id).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [displayModel, validations]);
+
+  const displayValidation = useMemo(() => {
+    if (selectedValidationId) {
+      return modelValidations.find(v => v.id === selectedValidationId);
+    }
+    return modelValidations.length > 0 ? modelValidations[0] : null;
+  }, [selectedValidationId, modelValidations]);
+
+  const validationSignals = useMemo(() => {
+    if (!displayValidation) return [];
+    return signals.filter(s => displayValidation.signalIds?.includes(s.id));
+  }, [displayValidation, signals]);
 
   const mergedData = useMemo(() => {
     const data = trainingSignals.flatMap(s => s.data);
@@ -132,7 +150,7 @@ export const Step4: React.FC = () => {
         <ModelList 
           models={readyModels}
           selectedModelId={selectedModelId}
-          onSelectModel={setSelectedModelId}
+          onSelectModel={(id) => { setSelectedModelId(id); setSelectedValidationId(null); }}
           displayModelId={displayModel?.id}
           deployedModelId={deployedModelId}
         />
@@ -207,6 +225,73 @@ export const Step4: React.FC = () => {
                     </div>
                 </div>
               </div>
+
+              {displayValidation && (
+                <div className="mt-4 pt-4 border-t border-gray-200 bg-blue-50/50 p-4 rounded-b-lg -mx-4 -mb-4">
+                  {/* Validation History Selector */}
+                  {modelValidations.length > 1 && (
+                    <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
+                        <span className="text-xs font-medium text-gray-500 uppercase whitespace-nowrap">History:</span>
+                        {modelValidations.map((val, idx) => (
+                            <button
+                                key={val.id}
+                                onClick={() => setSelectedValidationId(val.id)}
+                                className={cn(
+                                    "px-3 py-1 rounded-full text-xs border transition-colors whitespace-nowrap",
+                                    (displayValidation.id === val.id)
+                                        ? "bg-blue-100 text-blue-800 border-blue-200"
+                                        : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                                )}
+                            >
+                                #{modelValidations.length - idx} - {new Date(val.createdAt).toLocaleString()}
+                            </button>
+                        ))}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <span className="text-xs font-medium text-blue-500 uppercase tracking-wider block mb-2">Validation Signals</span>
+                        <div className="flex flex-wrap gap-2">
+                        {validationSignals.map(s => (
+                            <div key={s.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded border border-blue-200 text-sm">
+                            {s.name}
+                            <SignalInfoTooltip signal={s} />
+                            </div>
+                        ))}
+                        </div>
+                    </div>
+                    <div>
+                        <span className="text-xs font-medium text-blue-500 uppercase tracking-wider block mb-2">Validation Metric</span>
+                        <div className="flex gap-4">
+                            {displayModel.workflow === 'regression' ? (
+                                <>
+                                    <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                                        <span className="text-xs text-gray-500 block">OOB R² Score</span>
+                                        <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.oobR2?.toFixed(4) || 'N/A'}</span>
+                                    </div>
+                                    <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                                        <span className="text-xs text-gray-500 block">Training R²</span>
+                                        <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.trainingR2?.toFixed(4) || 'N/A'}</span>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                                        <span className="text-xs text-gray-500 block">Validation ROC</span>
+                                        <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.roc?.toFixed(4) || 'N/A'}</span>
+                                    </div>
+                                    <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                                        <span className="text-xs text-gray-500 block">Validation Precision</span>
+                                        <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.precision?.toFixed(4) || 'N/A'}</span>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Charts Removed in Step 4 as per requirement */}

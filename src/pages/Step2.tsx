@@ -529,6 +529,22 @@ export const Step2: React.FC = () => {
                         </div>
                     </>
                 )}
+                {modelType === 'RandomForestRegressor' && (
+                    <>
+                        <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">N Estimators</label>
+                            <input type="number" value={parameters.n_estimators || ''} onChange={(e) => setParameters({...parameters, n_estimators: parseInt(e.target.value)})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">Max Depth</label>
+                            <input type="number" value={parameters.max_depth || ''} onChange={(e) => setParameters({...parameters, max_depth: parseInt(e.target.value)})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">Min Samples Split</label>
+                            <input type="number" value={parameters.min_samples_split || ''} onChange={(e) => setParameters({...parameters, min_samples_split: parseInt(e.target.value)})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                        </div>
+                    </>
+                )}
               </div>
             </div>
           </Tabs>
