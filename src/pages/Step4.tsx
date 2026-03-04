@@ -2,8 +2,41 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { CheckCircle, Rocket, Server, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { PCAChart } from '../components/charts/PCAChart';
+import { AnomalyChart } from '../components/charts/AnomalyChart';
+import { ThreeDScatterChart } from '../components/charts/ThreeDScatterChart';
+import { TrueVsPredChart } from '../components/charts/TrueVsPredChart';
+import { ResidualDistributionChart } from '../components/charts/ResidualDistributionChart';
+import { FeatureImportanceChart } from '../components/charts/FeatureImportanceChart';
 import { SignalInfoTooltip } from '../components/SignalInfoTooltip';
 import { ModelList } from '../components/ModelList';
+
+const ChartContainer: React.FC<{ data: any[] }> = ({ data }) => {
+  const [is3D, setIs3D] = useState(false);
+  return (
+    <>
+      <div className="absolute top-2 right-2 z-10 flex space-x-2 text-xs bg-white/80 p-1 rounded shadow-sm">
+        <button
+          onClick={() => setIs3D(false)}
+          className={`px-2 py-1 rounded ${!is3D ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}
+        >
+          2D
+        </button>
+        <button
+          onClick={() => setIs3D(true)}
+          className={`px-2 py-1 rounded ${is3D ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}
+        >
+          3D
+        </button>
+      </div>
+      {is3D ? (
+        <ThreeDScatterChart data={data} />
+      ) : (
+        <PCAChart data={data} />
+      )}
+    </>
+  );
+};
 
 export const Step4: React.FC = () => {
   const { models, signals, deployedModelId, setDeployedModelId, validations } = useApp();
@@ -35,6 +68,50 @@ export const Step4: React.FC = () => {
     if (!displayModel) return [];
     return signals.filter(s => displayModel.trainSignalIds?.includes(s.id));
   }, [displayModel, signals]);
+
+  const mergedData = useMemo(() => {
+    const data = trainingSignals.flatMap(s => s.data);
+    
+    if (displayModel?.workflow === 'regression' && displayModel.status === 'completed') {
+       // Mock regression results
+       const targetFeature = trainingSignals[0]?.targetFeature;
+       const std = 1.0; 
+       const threshold = std * 3;
+       
+       return data.map(d => {
+         const trueValue = targetFeature && d[targetFeature] !== undefined ? d[targetFeature] : 0;
+         const isAnomaly = d.type === 'Anomaly';
+         const noise = isAnomaly ? (Math.random() > 0.5 ? 4 : -4) : (Math.random() - 0.5) * std;
+         const predValue = trueValue + (isAnomaly ? 0 : noise); 
+         const residual = trueValue - predValue;
+         const isAlarm = Math.abs(residual) > threshold;
+         
+         return {
+           ...d,
+           trueValue,
+           predValue,
+           residual,
+           confidence: [predValue - threshold, predValue + threshold],
+           isAlarm,
+           targetFeature
+         };
+       });
+    }
+    
+    return data;
+  }, [trainingSignals, displayModel]);
+
+  // Mock Feature Importance
+  const featureImportance = useMemo(() => {
+    if (displayModel?.workflow === 'regression' && trainingSignals.length > 0) {
+      const features = trainingSignals[0].features;
+      return {
+        features,
+        importance: features.map(() => Math.random())
+      };
+    }
+    return { features: [], importance: [] };
+  }, [displayModel, trainingSignals]);
 
   const handleDeploy = () => {
     if (!displayModel) return;
@@ -104,71 +181,79 @@ export const Step4: React.FC = () => {
                 <div>
                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">Training Metric</span>
                     <div className="flex gap-4">
-                        <div className="bg-white px-3 py-2 rounded border border-gray-200">
-                            <span className="text-xs text-gray-500 block">ROC Score</span>
-                            <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.roc.toFixed(4)}</span>
-                        </div>
-                        <div className="bg-white px-3 py-2 rounded border border-gray-200">
-                            <span className="text-xs text-gray-500 block">Precision</span>
-                            <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.precision.toFixed(4)}</span>
-                        </div>
+                        {displayModel.workflow === 'regression' ? (
+                            <>
+                                <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                                    <span className="text-xs text-gray-500 block">OOB R² Score</span>
+                                    <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.oobR2?.toFixed(4) || 'N/A'}</span>
+                                </div>
+                                <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                                    <span className="text-xs text-gray-500 block">Training R²</span>
+                                    <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.trainingR2?.toFixed(4) || 'N/A'}</span>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                                    <span className="text-xs text-gray-500 block">ROC Score</span>
+                                    <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.roc?.toFixed(4) || 'N/A'}</span>
+                                </div>
+                                <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                                    <span className="text-xs text-gray-500 block">Precision</span>
+                                    <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.precision?.toFixed(4) || 'N/A'}</span>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gray-50 rounded-2xl p-8 border border-gray-100 text-center">
+            {/* Charts Removed in Step 4 as per requirement */}
+
+             <div className="bg-gray-50 rounded-2xl p-8 border border-gray-100 text-center">
               <div className={cn(
-                "w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 transition-colors duration-500",
+                "w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-all",
                 deployedModelId === displayModel.id ? "bg-green-100" : "bg-indigo-100"
               )}>
-                <Server className={cn(
-                  "w-10 h-10 transition-colors duration-500",
-                  deployedModelId === displayModel.id ? "text-green-600" : "text-indigo-600"
-                )} />
+                {isDeploying ? (
+                  <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                ) : deployedModelId === displayModel.id ? (
+                  <CheckCircle className="w-8 h-8 text-green-600" />
+                ) : (
+                  <Rocket className="w-8 h-8 text-indigo-600" />
+                )}
               </div>
               
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                {deployedModelId === displayModel.id ? 'Model Deployed' : `Deploy ${displayModel.name}`}
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                {deployedModelId === displayModel.id ? 'Model Deployed' : 'Deploy Model'}
               </h2>
               
-              <p className="text-gray-500 mb-6">
+              <p className="text-gray-500 mb-8 max-w-md mx-auto">
                 {deployedModelId === displayModel.id 
-                  ? 'This model is currently active in the production environment.' 
-                  : 'Deploy this model to the production environment to start serving real-time predictions.'}
+                  ? `This model is currently running in production environment. It has been active since ${new Date().toLocaleDateString()}.`
+                  : "Deploy this model to production environment. This will replace the currently active model."
+                }
               </p>
-              
-              {isDeploying ? (
-                <div className="flex flex-col items-center justify-center space-y-3">
-                  <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                  <span className="text-indigo-600 font-medium">Deploying to production...</span>
-                </div>
-              ) : (
-                <button
-                  onClick={handleDeploy}
-                  disabled={deployedModelId === displayModel.id}
-                  className={cn(
-                    "w-full max-w-xs px-6 py-3 border border-transparent rounded-lg shadow-sm text-base font-medium text-white transition-all transform",
-                    deployedModelId === displayModel.id 
-                      ? "bg-green-600 cursor-default" 
-                      : "bg-indigo-600 hover:bg-indigo-700 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  )}
-                >
-                  {deployedModelId === displayModel.id ? 'Current Active Model' : 'Deploy Model'}
-                </button>
-              )}
-              
-              {deployedModelId && deployedModelId !== displayModel.id && (
-                <p className="mt-4 text-xs text-amber-600 bg-amber-50 inline-block px-3 py-1 rounded-full border border-amber-200">
-                  Warning: Deploying this model will replace the currently active model.
-                </p>
-              )}
+
+              <button
+                onClick={handleDeploy}
+                disabled={isDeploying || deployedModelId === displayModel.id}
+                className={cn(
+                  "px-8 py-3 rounded-lg font-medium shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2",
+                  deployedModelId === displayModel.id
+                    ? "bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 cursor-default"
+                    : "bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500"
+                )}
+              >
+                {isDeploying ? 'Deploying...' : deployedModelId === displayModel.id ? 'Deployed' : 'Deploy to Production'}
+              </button>
             </div>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-gray-400">
-            <Rocket className="w-16 h-16 mb-4 opacity-20" />
-            <p className="text-lg">Select a model to deploy.</p>
+            <Server className="w-16 h-16 mb-4 opacity-20" />
+            <p className="text-lg">Select a validated model to deploy.</p>
           </div>
         )}
       </div>

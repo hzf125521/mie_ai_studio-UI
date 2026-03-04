@@ -6,6 +6,9 @@ import { cn } from '../lib/utils';
 import { PCAChart } from '../components/charts/PCAChart';
 import { AnomalyChart } from '../components/charts/AnomalyChart';
 import { ThreeDScatterChart } from '../components/charts/ThreeDScatterChart';
+import { TrueVsPredChart } from '../components/charts/TrueVsPredChart';
+import { ResidualDistributionChart } from '../components/charts/ResidualDistributionChart';
+import { FeatureImportanceChart } from '../components/charts/FeatureImportanceChart';
 import { SignalInfoTooltip } from '../components/SignalInfoTooltip';
 import { ModelList } from '../components/ModelList';
 
@@ -53,8 +56,45 @@ export const Step3: React.FC = () => {
   }, [displayValidation, signals]);
 
   const mergedValidationData = useMemo(() => {
-    return validationSignals.flatMap(s => s.data);
-  }, [validationSignals]);
+    const data = validationSignals.flatMap(s => s.data);
+    if (displayModel?.workflow === 'regression') {
+       // Mock regression results for validation
+       const targetFeature = validationSignals[0]?.targetFeature;
+       const std = 1.0; 
+       const threshold = std * 3;
+       
+       return data.map(d => {
+         const trueValue = targetFeature && d[targetFeature] !== undefined ? d[targetFeature] : 0;
+         const isAnomaly = d.type === 'Anomaly';
+         const noise = isAnomaly ? (Math.random() > 0.5 ? 4 : -4) : (Math.random() - 0.5) * std;
+         const predValue = trueValue + (isAnomaly ? 0 : noise); 
+         const residual = trueValue - predValue;
+         const isAlarm = Math.abs(residual) > threshold;
+         
+         return {
+           ...d,
+           trueValue,
+           predValue,
+           residual,
+           confidence: [predValue - threshold, predValue + threshold],
+           isAlarm,
+           targetFeature
+         };
+       });
+    }
+    return data;
+  }, [validationSignals, displayModel]);
+
+  const featureImportance = useMemo(() => {
+    if (displayModel?.workflow === 'regression' && validationSignals.length > 0) {
+      const features = validationSignals[0].features;
+      return {
+        features,
+        importance: features.map(() => Math.random())
+      };
+    }
+    return { features: [], importance: [] };
+  }, [displayModel, validationSignals]);
 
   const handleValidationSignalToggle = (signalId: string) => {
     if (selectedValidationSignalIds.includes(signalId)) {
@@ -73,6 +113,13 @@ export const Step3: React.FC = () => {
             alert('Selected signal must have the same features as the training data.');
             return;
           }
+          
+          if (displayModel.workflow === 'regression') {
+             if (trainingSignal.targetFeature !== targetSignal.targetFeature) {
+               alert('Selected signal must have the same target feature as the training data.');
+               return;
+             }
+          }
         }
       }
       setSelectedValidationSignalIds([...selectedValidationSignalIds, signalId]);
@@ -87,21 +134,26 @@ export const Step3: React.FC = () => {
     
     // Simulate validation process
     setTimeout(() => {
+      const metrics = displayModel.workflow === 'regression' ? {
+        oobR2: 0.82 + Math.random() * 0.1, // Using oobR2 as generic metric slot or use new fields if Validation type updated
+        trainingR2: 0.88 + Math.random() * 0.08,
+      } : {
+        roc: 0.90 + Math.random() * 0.08,
+        precision: 0.88 + Math.random() * 0.08,
+      };
+
       const newValidation = {
         id: `val-${Date.now()}`,
         modelId: displayModel.id,
         signalIds: selectedValidationSignalIds,
         createdAt: new Date().toISOString(),
-        metrics: {
-          roc: 0.90 + Math.random() * 0.08,
-          precision: 0.88 + Math.random() * 0.08,
-        },
+        metrics,
       };
       
       addValidation(newValidation);
       updateModel(displayModel.id, { isValidating: false });
       setSelectedValidationSignalIds([]);
-      setSelectedValidationId(newValidation.id); // Select the new validation
+      setSelectedValidationId(newValidation.id);
     }, 2000);
   };
 
@@ -160,20 +212,35 @@ export const Step3: React.FC = () => {
                     </div>
                 </div>
                 <div>
-                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">Training Metric</span>
-                    <div className="flex gap-4">
-                        <div className="bg-white px-3 py-2 rounded border border-gray-200">
-                            <span className="text-xs text-gray-500 block">ROC Score</span>
-                            <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.roc.toFixed(4)}</span>
-                        </div>
-                        <div className="bg-white px-3 py-2 rounded border border-gray-200">
-                            <span className="text-xs text-gray-500 block">Precision</span>
-                            <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.precision.toFixed(4)}</span>
+                        <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">Training Metric</span>
+                        <div className="flex gap-4">
+                            {displayModel.workflow === 'regression' ? (
+                                <>
+                                    <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                                        <span className="text-xs text-gray-500 block">OOB R² Score</span>
+                                        <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.oobR2?.toFixed(4) || 'N/A'}</span>
+                                    </div>
+                                    <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                                        <span className="text-xs text-gray-500 block">Training R²</span>
+                                        <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.trainingR2?.toFixed(4) || 'N/A'}</span>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                                        <span className="text-xs text-gray-500 block">ROC Score</span>
+                                        <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.roc?.toFixed(4) || 'N/A'}</span>
+                                    </div>
+                                    <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                                        <span className="text-xs text-gray-500 block">Precision</span>
+                                        <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.precision?.toFixed(4) || 'N/A'}</span>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
             <div className="flex justify-between items-center border-b border-gray-100 pb-4">
               <h2 className="text-lg font-semibold text-gray-900">Validation Results</h2>
@@ -230,35 +297,75 @@ export const Step3: React.FC = () => {
                         <div>
                             <span className="text-xs font-medium text-blue-500 uppercase tracking-wider block mb-2">Validation Metric</span>
                             <div className="flex gap-4">
-                                <div className="bg-white px-3 py-2 rounded border border-blue-200">
-                                    <span className="text-xs text-gray-500 block">Validation ROC</span>
-                                    <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics.roc.toFixed(4)}</span>
-                                </div>
-                                <div className="bg-white px-3 py-2 rounded border border-blue-200">
-                                    <span className="text-xs text-gray-500 block">Validation Precision</span>
-                                    <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics.precision.toFixed(4)}</span>
-                                </div>
+                                {displayModel.workflow === 'regression' ? (
+                                    <>
+                                        <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                                            <span className="text-xs text-gray-500 block">OOB R² Score</span>
+                                            <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.oobR2?.toFixed(4) || 'N/A'}</span>
+                                        </div>
+                                        <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                                            <span className="text-xs text-gray-500 block">Training R²</span>
+                                            <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.trainingR2?.toFixed(4) || 'N/A'}</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                                            <span className="text-xs text-gray-500 block">Validation ROC</span>
+                                            <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.roc?.toFixed(4) || 'N/A'}</span>
+                                        </div>
+                                        <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                                            <span className="text-xs text-gray-500 block">Validation Precision</span>
+                                            <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.precision?.toFixed(4) || 'N/A'}</span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
                  </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="h-72 flex flex-col">
-                    <h3 className="text-sm font-medium text-gray-500 mb-2">Anomaly Score vs Threshold</h3>
-                    <div className="flex-1">
-                      <AnomalyChart data={mergedValidationData} threshold={0.8} />
-                    </div>
-                  </div>
-                  <div className="h-72 flex flex-col">
-                    <div className="flex justify-between items-center mb-2">
-                      <h3 className="text-sm font-medium text-gray-500">PCA Projection</h3>
-                    </div>
-                    <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden relative">
-                       <ChartContainer data={mergedValidationData} />
-                    </div>
-                  </div>
-                </div>
+                 {displayModel.workflow === 'regression' ? (
+                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                     <div className="h-72 flex flex-col">
+                       <div className="flex-1">
+                         <TrueVsPredChart data={mergedValidationData} targetName={validationSignals[0]?.targetFeature || 'Target'} />
+                       </div>
+                     </div>
+                     
+                     <div className="h-72 flex flex-col">
+                       <div className="flex-1">
+                         <ResidualDistributionChart data={mergedValidationData} />
+                       </div>
+                     </div>
+
+                     <div className="h-72 flex flex-col">
+                       <div className="flex-1">
+                          <FeatureImportanceChart features={featureImportance.features} importance={featureImportance.importance} />
+                       </div>
+                     </div>
+
+                     <div className="h-72 flex flex-col">
+                       <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden relative">
+                          <ChartContainer data={mergedValidationData} />
+                       </div>
+                     </div>
+                   </div>
+                 ) : (
+                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                     <div className="h-72 flex flex-col">
+                       <h3 className="text-sm font-medium text-gray-500 mb-2">Anomaly Score vs Threshold</h3>
+                       <div className="flex-1">
+                         <AnomalyChart data={mergedValidationData} threshold={0.8} />
+                       </div>
+                     </div>
+                     <div className="h-72 flex flex-col">
+                       <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden relative">
+                          <ChartContainer data={mergedValidationData} />
+                       </div>
+                     </div>
+                   </div>
+                 )}
               </>
             ) : (
               <div className="flex flex-col items-center justify-center h-64 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">

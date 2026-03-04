@@ -28,6 +28,7 @@ export const PCAChart: React.FC<PCAChartProps> = ({ data }) => {
 
   return (
     <div className="h-full w-full bg-white rounded-lg p-4 relative">
+      <h3 className="text-sm font-medium text-gray-500 absolute top-4 left-4 z-10">PCA Projection</h3>
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -54,6 +55,7 @@ export const PCAChart: React.FC<PCAChartProps> = ({ data }) => {
           <Scatter name="Normal" data={pcaData.filter(d => d.type === 'Normal')} fill="#10b981" shape="circle" />
           <Scatter name="Anomaly" data={pcaData.filter(d => d.type === 'Anomaly')} fill="#ef4444" shape="cross" />
           <Scatter name="Data" data={pcaData.filter(d => d.type === 'Data')} fill="#6366f1" shape="circle" />
+          <Scatter name="Alarm" data={pcaData.filter(d => d.isAlarm)} fill="#ef4444" shape="cross" />
         </ScatterChart>
       </ResponsiveContainer>
     </div>

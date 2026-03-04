@@ -7,14 +7,17 @@ import { cn } from '../lib/utils';
 import { PCAChart } from '../components/charts/PCAChart';
 import { AnomalyChart } from '../components/charts/AnomalyChart';
 import { ThreeDScatterChart } from '../components/charts/ThreeDScatterChart';
+import { TrueVsPredChart } from '../components/charts/TrueVsPredChart';
+import { ResidualDistributionChart } from '../components/charts/ResidualDistributionChart';
+import { FeatureImportanceChart } from '../components/charts/FeatureImportanceChart';
 import { SignalInfoTooltip } from '../components/SignalInfoTooltip';
 import { ModelList } from '../components/ModelList';
 
 export const Step2: React.FC = () => {
-  const { models, signals, addModel, updateModel } = useApp();
+  const { models, signals, addModel, updateModel, workflow } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSignalIds, setSelectedSignalIds] = useState<string[]>([]);
-  const [modelType, setModelType] = useState('Autoencoder');
+  const [modelType, setModelType] = useState(workflow === 'regression' ? 'RandomForestRegressor' : 'Autoencoder');
   
   // Preprocessing State
   const [preprocessing, setPreprocessing] = useState({
@@ -42,6 +45,9 @@ export const Step2: React.FC = () => {
       case 'OneClassSVM':
         setParameters({ nu: 0.1, kernel: 'rbf', gamma: 'scale' });
         break;
+      case 'RandomForestRegressor':
+        setParameters({ n_estimators: 100, max_depth: 10, min_samples_split: 2 });
+        break;
       default:
         setParameters({});
     }
@@ -49,7 +55,7 @@ export const Step2: React.FC = () => {
 
   const resetForm = () => {
     setSelectedSignalIds([]);
-    setModelType('Autoencoder');
+    setModelType(workflow === 'regression' ? 'RandomForestRegressor' : 'Autoencoder');
     setPreprocessing({ standardization: true, pca: 0 });
     // Parameters reset handled by useEffect on modelType change
   };
@@ -76,6 +82,13 @@ export const Step2: React.FC = () => {
             alert('Selected signal must have the same features as previously selected signals.');
             return;
           }
+
+          if (workflow === 'regression') {
+             if (firstSignal.targetFeature !== targetSignal.targetFeature) {
+               alert('Selected signal must have the same target feature as previously selected signals.');
+               return;
+             }
+          }
         }
       }
       setSelectedSignalIds([...selectedSignalIds, signalId]);
@@ -90,11 +103,14 @@ export const Step2: React.FC = () => {
 
     const now = new Date();
     const timeString = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
-    const name = `Model_${timeString}`;
+    let name = `Model_${timeString}`;
 
-    if (models.some(m => m.name === name)) {
-      alert('Model name already exists.');
-      return;
+    // Check for duplicate name and append suffix if needed
+    let counter = 1;
+    let originalName = name;
+    while (models.some(m => m.name === name)) {
+      name = `${originalName}_${counter}`;
+      counter++;
     }
 
     const newModel = {
@@ -103,6 +119,7 @@ export const Step2: React.FC = () => {
       createdAt: now.toISOString(),
       status: 'training' as const,
       type: modelType,
+      workflow: workflow || 'outliers', // Ensure workflow is set
       parameters: { ...parameters },
       preprocessing: { ...preprocessing },
       trainSignalIds: selectedSignalIds,
@@ -114,12 +131,17 @@ export const Step2: React.FC = () => {
 
     // Simulate training
     setTimeout(() => {
+      const metrics = workflow === 'regression' ? {
+        oobR2: 0.85 + Math.random() * 0.1,
+        trainingR2: 0.90 + Math.random() * 0.08,
+      } : {
+        roc: 0.95 + Math.random() * 0.04,
+        precision: 0.92 + Math.random() * 0.06,
+      };
+
       updateModel(newModel.id, {
         status: 'completed',
-        metrics: {
-          roc: 0.95 + Math.random() * 0.04,
-          precision: 0.92 + Math.random() * 0.06,
-        },
+        metrics,
       });
     }, 3000);
   };
@@ -142,8 +164,61 @@ export const Step2: React.FC = () => {
 
   // Merge data for visualization (simple concatenation for demo)
   const mergedData = useMemo(() => {
-    return trainingSignals.flatMap(s => s.data);
-  }, [trainingSignals]);
+    const data = trainingSignals.flatMap(s => s.data);
+    
+    if (displayModel?.workflow === 'regression' && displayModel.status === 'completed') {
+       // Mock regression results
+       const targetFeature = trainingSignals[0]?.targetFeature;
+       const std = 1.0; // Mock standard deviation of residuals
+       const threshold = std * 3;
+       
+       return data.map(d => {
+         const trueValue = targetFeature && d[targetFeature] !== undefined ? d[targetFeature] : 0;
+         // Mock prediction: slightly noisy version of true value
+         // Add some anomalies
+         const isAnomaly = d.type === 'Anomaly';
+         const noise = isAnomaly ? (Math.random() > 0.5 ? 4 : -4) : (Math.random() - 0.5) * std;
+         const predValue = trueValue + (isAnomaly ? 0 : noise); // Model predicts normal behavior, so true value deviates if anomaly? 
+         // Wait, "True value falls outside Model Pred +/- Threshold -> Alarm"
+         // If it's an anomaly in data, the model (trained on normal?) might predict "normal" value.
+         // Here we assume regression model predicts "expected" value.
+         // Let's say model predicts `trueValue` with small error usually.
+         // If `d.type === 'Anomaly'`, let's make the residual large.
+         
+         // Actually, if it's a regression model trained on history, it predicts Y based on X.
+         // If X is anomalous, Y might be anomalous prediction?
+         // User says: "Regression Residual... based on regression model... Alarm if True Value outside Pred +/- Threshold".
+         // This implies the model predicts "expected Y" given X. If "actual Y" is far from "predicted Y", it's an alarm.
+         
+         const residual = trueValue - predValue;
+         const isAlarm = Math.abs(residual) > threshold;
+         
+         return {
+           ...d,
+           trueValue,
+           predValue,
+           residual,
+           confidence: [predValue - threshold, predValue + threshold],
+           isAlarm,
+           targetFeature
+         };
+       });
+    }
+    
+    return data;
+  }, [trainingSignals, displayModel]);
+
+  // Mock Feature Importance
+  const featureImportance = useMemo(() => {
+    if (displayModel?.workflow === 'regression' && trainingSignals.length > 0) {
+      const features = trainingSignals[0].features;
+      return {
+        features,
+        importance: features.map(() => Math.random())
+      };
+    }
+    return { features: [], importance: [] };
+  }, [displayModel, trainingSignals]);
 
   return (
     <div className="flex h-full gap-6">
@@ -215,37 +290,77 @@ export const Step2: React.FC = () => {
                     <div>
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">Training Metric</span>
                         <div className="flex gap-4">
-                            <div className="bg-white px-3 py-2 rounded border border-gray-200">
-                                <span className="text-xs text-gray-500 block">ROC Score</span>
-                                <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.roc.toFixed(4)}</span>
-                            </div>
-                            <div className="bg-white px-3 py-2 rounded border border-gray-200">
-                                <span className="text-xs text-gray-500 block">Precision</span>
-                                <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.precision.toFixed(4)}</span>
-                            </div>
+                            {displayModel.workflow === 'regression' ? (
+                                <>
+                                    <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                                        <span className="text-xs text-gray-500 block">OOB R² Score</span>
+                                        <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.oobR2?.toFixed(4) || 'N/A'}</span>
+                                    </div>
+                                    <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                                        <span className="text-xs text-gray-500 block">Training R²</span>
+                                        <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.trainingR2?.toFixed(4) || 'N/A'}</span>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                                        <span className="text-xs text-gray-500 block">ROC Score</span>
+                                        <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.roc?.toFixed(4) || 'N/A'}</span>
+                                    </div>
+                                    <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                                        <span className="text-xs text-gray-500 block">Precision</span>
+                                        <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.precision?.toFixed(4) || 'N/A'}</span>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Charts */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="h-72 flex flex-col">
-                    <div className="flex justify-between items-center mb-2">
-                      <h3 className="text-sm font-medium text-gray-500">PCA Projection</h3>
-                    </div>
-                    <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden relative">
-                       <ChartContainer data={mergedData} />
-                    </div>
-                  </div>
-                  
-                  <div className="h-72 flex flex-col">
-                      <h3 className="text-sm font-medium text-gray-500 mb-2">Anomaly Score</h3>
+                {displayModel.workflow === 'regression' ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="h-72 flex flex-col">
                       <div className="flex-1">
-                        <AnomalyChart data={mergedData} threshold={0.8} />
+                        <TrueVsPredChart data={mergedData} targetName={trainingSignals[0]?.targetFeature || 'Target'} />
                       </div>
+                    </div>
+                    
+                    <div className="h-72 flex flex-col">
+                      <div className="flex-1">
+                        <ResidualDistributionChart data={mergedData} />
+                      </div>
+                    </div>
+
+                    <div className="h-72 flex flex-col">
+                      <div className="flex-1">
+                         <FeatureImportanceChart features={featureImportance.features} importance={featureImportance.importance} />
+                      </div>
+                    </div>
+
+                    <div className="h-72 flex flex-col">
+                      <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden relative">
+                         <ChartContainer data={mergedData} />
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="h-72 flex flex-col">
+                      <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden relative">
+                         <ChartContainer data={mergedData} />
+                      </div>
+                    </div>
+                    
+                    <div className="h-72 flex flex-col">
+                        <h3 className="text-sm font-medium text-gray-500 mb-2">Anomaly Score</h3>
+                        <div className="flex-1">
+                          <AnomalyChart data={mergedData} threshold={0.8} />
+                        </div>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -328,10 +443,16 @@ export const Step2: React.FC = () => {
                   onChange={(e) => setModelType(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 >
-                  <option value="Autoencoder">Autoencoder</option>
-                  <option value="VAE">Variational Autoencoder (VAE)</option>
-                  <option value="IsolationForest">Isolation Forest</option>
-                  <option value="OneClassSVM">One-Class SVM</option>
+                  {workflow === 'regression' ? (
+                    <option value="RandomForestRegressor">RandomForestRegressor</option>
+                  ) : (
+                    <>
+                      <option value="Autoencoder">Autoencoder</option>
+                      <option value="VAE">Variational Autoencoder (VAE)</option>
+                      <option value="IsolationForest">Isolation Forest</option>
+                      <option value="OneClassSVM">One-Class SVM</option>
+                    </>
+                  )}
                 </select>
               </div>
               

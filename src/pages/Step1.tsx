@@ -82,13 +82,15 @@ const MultiSelect: React.FC<{
 };
 
 export const Step1: React.FC = () => {
-  const { signals, addSignal, updateSignal, removeSignal } = useApp();
+  const { signals, addSignal, updateSignal, removeSignal, workflow, models, validations } = useApp();
   const [selectedSignalIds, setSelectedSignalIds] = useState<string[]>([]);
   
   // New Signal State
   const [startTime, setStartTime] = useState('2023-01-01T00:00');
   const [endTime, setEndTime] = useState('2023-01-02T00:00');
   const [selectedFeatures, setSelectedFeatures] = useState<Record<string, string[]>>({});
+  // Target Selection for Regression
+  const [selectedTarget, setSelectedTarget] = useState<string>('');
 
   // Filter State
   const [filterName, setFilterName] = useState('');
@@ -98,6 +100,28 @@ export const Step1: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
 
+  // Clean up selected features when target changes
+  useEffect(() => {
+    if (selectedTarget) {
+      const parts = selectedTarget.split('_');
+      if (parts.length === 2) {
+        const [tPId, tFName] = parts;
+        if (selectedFeatures[tPId]?.includes(tFName)) {
+          setSelectedFeatures(prev => ({
+            ...prev,
+            [tPId]: prev[tPId].filter(f => f !== tFName)
+          }));
+        }
+      }
+    }
+  }, [selectedTarget]);
+
+  const allFeatures = useMemo(() => {
+    return MEASUREMENT_POINTS.flatMap(point => 
+      point.features.map(f => `${point.id}_${f}`)
+    );
+  }, []);
+
   const handleFeatureChange = (pointId: string, features: string[]) => {
     setSelectedFeatures(prev => ({ ...prev, [pointId]: features }));
   };
@@ -105,12 +129,14 @@ export const Step1: React.FC = () => {
   const handleAddSignal = () => {
     const now = new Date();
     const timeString = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
-    const name = `Signal_${timeString}`;
+    let name = `Signal_${timeString}`;
     
-    // Check for duplicate name (though unlikely with timestamp)
-    if (signals.some(s => s.name === name)) {
-      alert('Signal name already exists. Please try again.');
-      return;
+    // Check for duplicate name and append suffix if needed
+    let counter = 1;
+    let originalName = name;
+    while (signals.some(s => s.name === name)) {
+      name = `${originalName}_${counter}`;
+      counter++;
     }
 
     const flatFeatures = Object.entries(selectedFeatures).flatMap(([pointId, feats]) => 
@@ -122,13 +148,32 @@ export const Step1: React.FC = () => {
       return;
     }
 
+    if (workflow === 'regression' && !selectedTarget) {
+      alert('Please select a target feature (y).');
+      return;
+    }
+
+    if (workflow === 'regression' && flatFeatures.includes(selectedTarget)) {
+      alert('Target feature cannot be one of the input features.');
+      return;
+    }
+
     const id = `sig-${Date.now()}`;
     // Generate data
     const mockData = Array.from({ length: 50 }, (_, i) => {
       const point: any = { time: i };
+      // Generate X data
       flatFeatures.forEach((feature, idx) => {
         point[feature] = Math.sin(i * 0.2 + idx) + Math.random() * 0.2;
       });
+      // Generate y data if regression
+      if (workflow === 'regression' && selectedTarget) {
+        // Mock relationship: y = sum(x) + noise
+        let sumX = 0;
+        flatFeatures.forEach(f => sumX += point[f]);
+        point[selectedTarget] = sumX * 0.5 + Math.random() * 0.5;
+      }
+
       point.x = Math.random() * 10;
       point.y = Math.random() * 10;
       point.z = Math.random() * 10;
@@ -143,6 +188,7 @@ export const Step1: React.FC = () => {
       createdAt: now.toISOString(),
       timeRange: [startTime, endTime],
       features: flatFeatures,
+      targetFeature: workflow === 'regression' ? selectedTarget : undefined,
       data: mockData,
     });
   };
@@ -163,6 +209,16 @@ export const Step1: React.FC = () => {
     setEditingId(signal.id);
     setEditName(signal.name);
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (editingId && !(event.target as HTMLElement).closest('.editing-container')) {
+        setEditingId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [editingId]);
 
   const saveEditing = (id: string) => {
     if (signals.some(s => s.name === editName && s.id !== id)) {
@@ -190,6 +246,21 @@ export const Step1: React.FC = () => {
     }
   }, [selectedSignalIds, signals]);
 
+  const handleRemoveSignal = (id: string) => {
+    // Check if signal is used in any model or validation
+    // Note: This requires access to models and validations which are in AppContext
+    // We'll need to fetch them.
+    const isUsed = models?.some(m => m.trainSignalIds?.includes(id)) || 
+                   validations?.some(v => v.signalIds?.includes(id));
+    
+    if (isUsed) {
+      alert('This signal is currently used in a model or validation and cannot be deleted.');
+      return;
+    }
+    
+    removeSignal(id);
+  };
+
   return (
     <div className="flex h-full gap-6">
       {/* Left Sidebar */}
@@ -199,16 +270,44 @@ export const Step1: React.FC = () => {
             <Plus className="w-5 h-5 text-indigo-600" /> Add Signals
           </h2>
           <div className="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
-            {MEASUREMENT_POINTS.map(point => (
-              <MultiSelect
-                key={point.id}
-                label={point.name}
-                options={point.features}
-                selected={selectedFeatures[point.id] || []}
-                onChange={(features) => handleFeatureChange(point.id, features)}
-              />
-            ))}
+            {MEASUREMENT_POINTS.map(point => {
+              const availableFeatures = workflow === 'regression' && selectedTarget 
+                ? point.features.filter(f => `${point.id}_${f}` !== selectedTarget)
+                : point.features;
+              
+              return (
+                <MultiSelect
+                  key={point.id}
+                  label={workflow === 'regression' ? `${point.name} (Input X)` : point.name}
+                  options={availableFeatures}
+                  selected={selectedFeatures[point.id] || []}
+                  onChange={(features) => handleFeatureChange(point.id, features)}
+                />
+              );
+            })}
             
+            {workflow === 'regression' && (
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Target Feature (y)</label>
+                <select
+                  value={selectedTarget}
+                  onChange={(e) => setSelectedTarget(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-md py-1.5 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="">Select target...</option>
+                  {allFeatures.map(f => {
+                    const [pId, fName] = f.split('_');
+                    const isSelected = selectedFeatures[pId]?.includes(fName);
+                    return (
+                      <option key={f} value={f} disabled={isSelected}>
+                        {f}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Start Time</label>
@@ -278,13 +377,17 @@ export const Step1: React.FC = () => {
                 >
                   <div className="flex flex-col flex-1 min-w-0 mr-2">
                     {editingId === signal.id ? (
-                      <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-1 editing-container" onClick={e => e.stopPropagation()}>
                         <input 
                           type="text" 
                           value={editName} 
                           onChange={e => setEditName(e.target.value)}
                           className="w-full px-1 py-0.5 text-xs border border-indigo-300 rounded"
                           autoFocus
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') saveEditing(signal.id);
+                            if (e.key === 'Escape') setEditingId(null);
+                          }}
                         />
                         <button onClick={() => saveEditing(signal.id)} className="text-green-600"><Check className="w-3 h-3" /></button>
                         <button onClick={() => setEditingId(null)} className="text-red-500"><X className="w-3 h-3" /></button>
@@ -305,7 +408,7 @@ export const Step1: React.FC = () => {
                     </span>
                   </div>
                   <button
-                    onClick={(e) => { e.stopPropagation(); removeSignal(signal.id); }}
+                    onClick={(e) => { e.stopPropagation(); handleRemoveSignal(signal.id); }}
                     className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-opacity"
                     title="Remove Signal"
                   >
@@ -336,14 +439,18 @@ export const Step1: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="h-72 flex flex-col">
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Multi-Feature Time Domain</h3>
                 <div className="flex-1">
-                  <TimeSeriesChart data={signal.data} features={signal.features} />
+                  <TimeSeriesChart 
+                    data={signal.data} 
+                    features={signal.features} 
+                    targetFeature={signal.targetFeature}
+                    title={workflow === 'regression' ? 'Device Status Features VS Target Feature' : undefined}
+                  />
                 </div>
               </div>
               <div className="h-72 flex flex-col">
                 <div className="flex justify-between items-center mb-2 px-2">
-                  <h3 className="text-sm font-medium text-gray-500">PCA Projection</h3>
+                  
                 </div>
                 <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden relative">
                    <ChartContainer data={signal.data} />
