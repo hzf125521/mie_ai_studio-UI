@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { CheckCircle, Rocket, Server, Clock } from 'lucide-react';
+import { CheckCircle, Rocket, Server, Clock, Edit2, Trash2, Check, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { PCAChart } from '../components/charts/PCAChart';
 import { AnomalyChart } from '../components/charts/AnomalyChart';
@@ -39,18 +39,21 @@ const ChartContainer: React.FC<{ data: any[] }> = ({ data }) => {
 };
 
 export const Step4: React.FC = () => {
-  const { models, signals, deployedModelId, setDeployedModelId, validations } = useApp();
+  const { models, signals, deployedModelId, setDeployedModelId, validations, updateValidation, removeValidation } = useApp();
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [isDeploying, setIsDeploying] = useState(false);
   const [selectedValidationId, setSelectedValidationId] = useState<string | null>(null);
+  const [hoveredValidationId, setHoveredValidationId] = useState<string | null>(null);
+  const [editingValidationId, setEditingValidationId] = useState<string | null>(null);
+  const [editValidationName, setEditValidationName] = useState('');
 
   const readyModels = useMemo(() => {
-    return models.filter(m => 
-      m.status === 'completed' && 
+    return models.filter(m =>
+      m.status === 'completed' &&
       validations.some(v => v.modelId === m.id)
     );
   }, [models, validations]);
-  
+
   const displayModel = useMemo(() => {
     if (selectedModelId) {
       return models.find(m => m.id === selectedModelId);
@@ -82,6 +85,29 @@ export const Step4: React.FC = () => {
     return modelValidations.length > 0 ? modelValidations[0] : null;
   }, [selectedValidationId, modelValidations]);
 
+  const startEditingValidation = (id: string, name: string) => {
+    setEditingValidationId(id);
+    setEditValidationName(name);
+  };
+
+  const saveEditingValidation = (id: string) => {
+    const trimmed = editValidationName.trim();
+    if (!trimmed) return;
+    if (modelValidations.some(v => v.name === trimmed && v.id !== id)) {
+      alert('Validation name already exists.');
+      return;
+    }
+    updateValidation(id, { name: trimmed });
+    setEditingValidationId(null);
+  };
+
+  const handleDeleteValidation = (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this validation?')) return;
+    const nextSelected = modelValidations.filter(v => v.id !== id)[0]?.id ?? null;
+    removeValidation(id);
+    setSelectedValidationId(prev => (prev === id ? nextSelected : prev));
+  };
+
   const validationSignals = useMemo(() => {
     if (!displayValidation) return [];
     return signals.filter(s => displayValidation.signalIds?.includes(s.id));
@@ -89,33 +115,33 @@ export const Step4: React.FC = () => {
 
   const mergedData = useMemo(() => {
     const data = trainingSignals.flatMap(s => s.data);
-    
+
     if (displayModel?.workflow === 'regression' && displayModel.status === 'completed') {
-       // Mock regression results
-       const targetFeature = trainingSignals[0]?.targetFeature;
-       const std = 1.0; 
-       const threshold = std * 3;
-       
-       return data.map(d => {
-         const trueValue = targetFeature && d[targetFeature] !== undefined ? d[targetFeature] : 0;
-         const isAnomaly = d.type === 'Anomaly';
-         const noise = isAnomaly ? (Math.random() > 0.5 ? 4 : -4) : (Math.random() - 0.5) * std;
-         const predValue = trueValue + (isAnomaly ? 0 : noise); 
-         const residual = trueValue - predValue;
-         const isAlarm = Math.abs(residual) > threshold;
-         
-         return {
-           ...d,
-           trueValue,
-           predValue,
-           residual,
-           confidence: [predValue - threshold, predValue + threshold],
-           isAlarm,
-           targetFeature
-         };
-       });
+      // Mock regression results
+      const targetFeature = trainingSignals[0]?.targetFeature;
+      const std = 1.0;
+      const threshold = std * 3;
+
+      return data.map(d => {
+        const trueValue = targetFeature && d[targetFeature] !== undefined ? d[targetFeature] : 0;
+        const isAnomaly = d.type === 'Anomaly';
+        const noise = isAnomaly ? (Math.random() > 0.5 ? 4 : -4) : (Math.random() - 0.5) * std;
+        const predValue = trueValue + (isAnomaly ? 0 : noise);
+        const residual = trueValue - predValue;
+        const isAlarm = Math.abs(residual) > threshold;
+
+        return {
+          ...d,
+          trueValue,
+          predValue,
+          residual,
+          confidence: [predValue - threshold, predValue + threshold],
+          isAlarm,
+          targetFeature
+        };
+      });
     }
-    
+
     return data;
   }, [trainingSignals, displayModel]);
 
@@ -147,7 +173,7 @@ export const Step4: React.FC = () => {
         <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
           <CheckCircle className="w-4 h-4 text-green-500" /> Ready for Deployment
         </h3>
-        <ModelList 
+        <ModelList
           models={readyModels}
           selectedModelId={selectedModelId}
           onSelectModel={(id) => { setSelectedModelId(id); setSelectedValidationId(null); }}
@@ -183,46 +209,46 @@ export const Step4: React.FC = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">Training Signals</span>
-                    <div className="flex flex-wrap gap-2">
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">Training Signals</span>
+                  <div className="flex flex-wrap gap-2">
                     {trainingSignals.map(s => (
-                        <div key={s.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded border border-gray-200 text-sm">
+                      <div key={s.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded border border-gray-200 text-sm">
                         {s.name}
                         <SignalInfoTooltip signal={s} />
-                        </div>
+                      </div>
                     ))}
-                    </div>
+                  </div>
                 </div>
                 <div>
-                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">Training Metric</span>
-                    <div className="flex gap-4">
-                        {displayModel.workflow === 'regression' ? (
-                            <>
-                                <div className="bg-white px-3 py-2 rounded border border-gray-200">
-                                    <span className="text-xs text-gray-500 block">OOB R² Score</span>
-                                    <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.oobR2?.toFixed(4) || 'N/A'}</span>
-                                </div>
-                                <div className="bg-white px-3 py-2 rounded border border-gray-200">
-                                    <span className="text-xs text-gray-500 block">Training R²</span>
-                                    <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.trainingR2?.toFixed(4) || 'N/A'}</span>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="bg-white px-3 py-2 rounded border border-gray-200">
-                                    <span className="text-xs text-gray-500 block">ROC Score</span>
-                                    <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.roc?.toFixed(4) || 'N/A'}</span>
-                                </div>
-                                <div className="bg-white px-3 py-2 rounded border border-gray-200">
-                                    <span className="text-xs text-gray-500 block">Precision</span>
-                                    <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.precision?.toFixed(4) || 'N/A'}</span>
-                                </div>
-                            </>
-                        )}
-                    </div>
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">Training Metric</span>
+                  <div className="flex gap-4">
+                    {displayModel.workflow === 'regression' ? (
+                      <>
+                        <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                          <span className="text-xs text-gray-500 block">OOB R² Score</span>
+                          <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.oobR2?.toFixed(4) || 'N/A'}</span>
+                        </div>
+                        <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                          <span className="text-xs text-gray-500 block">Training R²</span>
+                          <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.trainingR2?.toFixed(4) || 'N/A'}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                          <span className="text-xs text-gray-500 block">ROC Score</span>
+                          <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.roc?.toFixed(4) || 'N/A'}</span>
+                        </div>
+                        <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                          <span className="text-xs text-gray-500 block">Precision</span>
+                          <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.precision?.toFixed(4) || 'N/A'}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -231,63 +257,115 @@ export const Step4: React.FC = () => {
                   {/* Validation History Selector */}
                   {modelValidations.length > 1 && (
                     <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
-                        <span className="text-xs font-medium text-gray-500 uppercase whitespace-nowrap">History:</span>
-                        {modelValidations.map((val, idx) => (
-                            <button
-                                key={val.id}
+                      <span className="text-xs font-medium text-gray-500 uppercase whitespace-nowrap">History:</span>
+                      {modelValidations.map((val, idx) => (
+                        <div
+                          key={val.id}
+                          className="flex items-center"
+                          onMouseEnter={() => setHoveredValidationId(val.id)}
+                          onMouseLeave={() => setHoveredValidationId(null)}
+                        >
+                          {editingValidationId === val.id ? (
+                            <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-full px-2 py-1" onClick={e => e.stopPropagation()}>
+                              <input
+                                type="text"
+                                value={editValidationName}
+                                onChange={e => setEditValidationName(e.target.value)}
+                                className="w-32 px-1 py-0.5 text-xs border border-indigo-300 rounded"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') saveEditingValidation(val.id);
+                                  if (e.key === 'Escape') setEditingValidationId(null);
+                                }}
+                              />
+                              <button onClick={() => saveEditingValidation(val.id)} className="text-green-600 hover:text-green-800">
+                                <Check className="w-3 h-3" />
+                              </button>
+                              <button onClick={() => setEditingValidationId(null)} className="text-red-500 hover:text-red-700">
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center">
+                              <button
                                 onClick={() => setSelectedValidationId(val.id)}
                                 className={cn(
-                                    "px-3 py-1 rounded-full text-xs border transition-colors whitespace-nowrap",
-                                    (displayValidation.id === val.id)
-                                        ? "bg-blue-100 text-blue-800 border-blue-200"
-                                        : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                                  "px-3 py-1 rounded-full text-xs border transition-colors whitespace-nowrap",
+                                  (displayValidation.id === val.id)
+                                    ? "bg-blue-100 text-blue-800 border-blue-200"
+                                    : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
                                 )}
-                            >
-                                #{modelValidations.length - idx} - {new Date(val.createdAt).toLocaleString()}
-                            </button>
-                        ))}
+                                title={new Date(val.createdAt).toLocaleString()}
+                              >
+                                {val.name || `#${modelValidations.length - idx}`}
+                              </button>
+                              <div
+                                className={cn(
+                                  'flex items-center gap-1 ml-1 transition-opacity duration-200',
+                                  hoveredValidationId === val.id ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                                )}
+                              >
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); startEditingValidation(val.id, val.name); }}
+                                  className="text-gray-400 hover:text-indigo-600 p-1 rounded hover:bg-gray-100"
+                                  title="Rename"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteValidation(val.id); }}
+                                  className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-gray-100"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <span className="text-xs font-medium text-blue-500 uppercase tracking-wider block mb-2">Validation Signals</span>
-                        <div className="flex flex-wrap gap-2">
+                      <span className="text-xs font-medium text-blue-500 uppercase tracking-wider block mb-2">Validation Signals</span>
+                      <div className="flex flex-wrap gap-2">
                         {validationSignals.map(s => (
-                            <div key={s.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded border border-blue-200 text-sm">
+                          <div key={s.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded border border-blue-200 text-sm">
                             {s.name}
                             <SignalInfoTooltip signal={s} />
-                            </div>
+                          </div>
                         ))}
-                        </div>
+                      </div>
                     </div>
                     <div>
-                        <span className="text-xs font-medium text-blue-500 uppercase tracking-wider block mb-2">Validation Metric</span>
-                        <div className="flex gap-4">
-                            {displayModel.workflow === 'regression' ? (
-                                <>
-                                    <div className="bg-white px-3 py-2 rounded border border-blue-200">
-                                        <span className="text-xs text-gray-500 block">OOB R² Score</span>
-                                        <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.oobR2?.toFixed(4) || 'N/A'}</span>
-                                    </div>
-                                    <div className="bg-white px-3 py-2 rounded border border-blue-200">
-                                        <span className="text-xs text-gray-500 block">Training R²</span>
-                                        <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.trainingR2?.toFixed(4) || 'N/A'}</span>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="bg-white px-3 py-2 rounded border border-blue-200">
-                                        <span className="text-xs text-gray-500 block">Validation ROC</span>
-                                        <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.roc?.toFixed(4) || 'N/A'}</span>
-                                    </div>
-                                    <div className="bg-white px-3 py-2 rounded border border-blue-200">
-                                        <span className="text-xs text-gray-500 block">Validation Precision</span>
-                                        <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.precision?.toFixed(4) || 'N/A'}</span>
-                                    </div>
-                                </>
-                            )}
-                        </div>
+                      <span className="text-xs font-medium text-blue-500 uppercase tracking-wider block mb-2">Validation Metric</span>
+                      <div className="flex gap-4">
+                        {displayModel.workflow === 'regression' ? (
+                          <>
+                            <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                              <span className="text-xs text-gray-500 block">OOB R² Score</span>
+                              <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.oobR2?.toFixed(4) || 'N/A'}</span>
+                            </div>
+                            <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                              <span className="text-xs text-gray-500 block">Training R²</span>
+                              <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.trainingR2?.toFixed(4) || 'N/A'}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                              <span className="text-xs text-gray-500 block">Validation ROC</span>
+                              <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.roc?.toFixed(4) || 'N/A'}</span>
+                            </div>
+                            <div className="bg-white px-3 py-2 rounded border border-blue-200">
+                              <span className="text-xs text-gray-500 block">Validation Precision</span>
+                              <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.precision?.toFixed(4) || 'N/A'}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -296,7 +374,7 @@ export const Step4: React.FC = () => {
 
             {/* Charts Removed in Step 4 as per requirement */}
 
-             <div className="bg-gray-50 rounded-2xl p-8 border border-gray-100 text-center">
+            <div className="bg-gray-50 rounded-2xl p-8 border border-gray-100 text-center">
               <div className={cn(
                 "w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-all",
                 deployedModelId === displayModel.id ? "bg-green-100" : "bg-indigo-100"
@@ -309,30 +387,41 @@ export const Step4: React.FC = () => {
                   <Rocket className="w-8 h-8 text-indigo-600" />
                 )}
               </div>
-              
+
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
                 {deployedModelId === displayModel.id ? 'Model Deployed' : 'Deploy Model'}
               </h2>
-              
+
               <p className="text-gray-500 mb-8 max-w-md mx-auto">
-                {deployedModelId === displayModel.id 
+                {deployedModelId === displayModel.id
                   ? `This model is currently running in production environment. It has been active since ${new Date().toLocaleDateString()}.`
                   : "Deploy this model to production environment. This will replace the currently active model."
                 }
               </p>
 
-              <button
-                onClick={handleDeploy}
-                disabled={isDeploying || deployedModelId === displayModel.id}
-                className={cn(
-                  "px-8 py-3 rounded-lg font-medium shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2",
-                  deployedModelId === displayModel.id
-                    ? "bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 cursor-default"
-                    : "bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500"
+              <div className="flex gap-4 justify-center">
+                <button
+                  onClick={handleDeploy}
+                  disabled={isDeploying || deployedModelId === displayModel.id}
+                  className={cn(
+                    "px-8 py-3 rounded-lg font-medium shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2",
+                    deployedModelId === displayModel.id
+                      ? "bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 cursor-default"
+                      : "bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500"
+                  )}
+                >
+                  {isDeploying ? 'Deploying...' : deployedModelId === displayModel.id ? 'Deployed' : 'Deploy to Production'}
+                </button>
+
+                {deployedModelId === displayModel.id && (
+                  <button
+                    onClick={() => setDeployedModelId(null)}
+                    className="px-8 py-3 rounded-lg font-medium shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 bg-red-100 text-red-700 hover:bg-red-200 focus:ring-red-500"
+                  >
+                    Cancel Deployment
+                  </button>
                 )}
-              >
-                {isDeploying ? 'Deploying...' : deployedModelId === displayModel.id ? 'Deployed' : 'Deploy to Production'}
-              </button>
+              </div>
             </div>
           </div>
         ) : (

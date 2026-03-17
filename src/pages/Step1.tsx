@@ -84,7 +84,7 @@ const MultiSelect: React.FC<{
 export const Step1: React.FC = () => {
   const { signals, addSignal, updateSignal, removeSignal, workflow, models, validations } = useApp();
   const [selectedSignalIds, setSelectedSignalIds] = useState<string[]>([]);
-  
+
   // New Signal State
   const [startTime, setStartTime] = useState('2023-01-01T00:00');
   const [endTime, setEndTime] = useState('2023-01-02T00:00');
@@ -99,6 +99,7 @@ export const Step1: React.FC = () => {
   // Editing State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [hoveredSignalId, setHoveredSignalId] = useState<string | null>(null);
 
   // Clean up selected features when target changes
   useEffect(() => {
@@ -117,7 +118,7 @@ export const Step1: React.FC = () => {
   }, [selectedTarget]);
 
   const allFeatures = useMemo(() => {
-    return MEASUREMENT_POINTS.flatMap(point => 
+    return MEASUREMENT_POINTS.flatMap(point =>
       point.features.map(f => `${point.id}_${f}`)
     );
   }, []);
@@ -130,7 +131,7 @@ export const Step1: React.FC = () => {
     const now = new Date();
     const timeString = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
     let name = `Signal_${timeString}`;
-    
+
     // Check for duplicate name and append suffix if needed
     let counter = 1;
     let originalName = name;
@@ -139,7 +140,7 @@ export const Step1: React.FC = () => {
       counter++;
     }
 
-    const flatFeatures = Object.entries(selectedFeatures).flatMap(([pointId, feats]) => 
+    const flatFeatures = Object.entries(selectedFeatures).flatMap(([pointId, feats]) =>
       (feats as string[]).map(f => `${pointId}_${f}`)
     );
 
@@ -250,14 +251,14 @@ export const Step1: React.FC = () => {
     // Check if signal is used in any model or validation
     // Note: This requires access to models and validations which are in AppContext
     // We'll need to fetch them.
-    const isUsed = models?.some(m => m.trainSignalIds?.includes(id)) || 
-                   validations?.some(v => v.signalIds?.includes(id));
-    
+    const isUsed = models?.some(m => m.trainSignalIds?.includes(id)) ||
+      validations?.some(v => v.signalIds?.includes(id));
+
     if (isUsed) {
       alert('This signal is currently used in a model or validation and cannot be deleted.');
       return;
     }
-    
+
     removeSignal(id);
   };
 
@@ -271,10 +272,10 @@ export const Step1: React.FC = () => {
           </h2>
           <div className="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
             {MEASUREMENT_POINTS.map(point => {
-              const availableFeatures = workflow === 'regression' && selectedTarget 
+              const availableFeatures = workflow === 'regression' && selectedTarget
                 ? point.features.filter(f => `${point.id}_${f}` !== selectedTarget)
                 : point.features;
-              
+
               return (
                 <MultiSelect
                   key={point.id}
@@ -285,7 +286,7 @@ export const Step1: React.FC = () => {
                 />
               );
             })}
-            
+
             {workflow === 'regression' && (
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Target Feature (y)</label>
@@ -341,7 +342,7 @@ export const Step1: React.FC = () => {
           <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
             <Activity className="w-4 h-4 text-gray-500" /> Regular Signals
           </h3>
-          
+
           {/* Filters */}
           <div className="mb-3 space-y-2">
             <div className="relative">
@@ -365,22 +366,24 @@ export const Step1: React.FC = () => {
           <div className="flex-1 overflow-y-auto pr-1">
             <ul className="space-y-2">
               {filteredSignals.map((signal) => (
-                <li 
-                  key={signal.id} 
+                <li
+                  key={signal.id}
                   className={cn(
                     "group flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer",
-                    selectedSignalIds.includes(signal.id) 
-                      ? "bg-indigo-50 border-indigo-300 ring-1 ring-indigo-300" 
+                    selectedSignalIds.includes(signal.id)
+                      ? "bg-indigo-50 border-indigo-300 ring-1 ring-indigo-300"
                       : "bg-white border-gray-200 hover:border-indigo-200 hover:bg-gray-50"
                   )}
+                  onMouseEnter={() => setHoveredSignalId(signal.id)}
+                  onMouseLeave={() => setHoveredSignalId(null)}
                   onClick={() => toggleSignalSelection(signal.id)}
                 >
                   <div className="flex flex-col flex-1 min-w-0 mr-2">
                     {editingId === signal.id ? (
                       <div className="flex items-center gap-1 editing-container" onClick={e => e.stopPropagation()}>
-                        <input 
-                          type="text" 
-                          value={editName} 
+                        <input
+                          type="text"
+                          value={editName}
                           onChange={e => setEditName(e.target.value)}
                           className="w-full px-1 py-0.5 text-xs border border-indigo-300 rounded"
                           autoFocus
@@ -393,11 +396,14 @@ export const Step1: React.FC = () => {
                         <button onClick={() => setEditingId(null)} className="text-red-500"><X className="w-3 h-3" /></button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 h-5">
                         <span className="text-sm font-medium text-gray-900 truncate" title={signal.name}>{signal.name}</span>
-                        <button 
+                        <button
                           onClick={(e) => { e.stopPropagation(); startEditing(signal); }}
-                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-indigo-600"
+                          className={cn(
+                            'text-gray-400 hover:text-indigo-600 transition-opacity duration-200 p-1 rounded hover:bg-gray-100',
+                            hoveredSignalId === signal.id ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                          )}
                         >
                           <Edit2 className="w-3 h-3" />
                         </button>
@@ -409,7 +415,10 @@ export const Step1: React.FC = () => {
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleRemoveSignal(signal.id); }}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-opacity"
+                    className={cn(
+                      'p-1 text-gray-400 hover:text-red-500 transition-opacity duration-200 rounded hover:bg-gray-100',
+                      hoveredSignalId === signal.id ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                    )}
                     title="Remove Signal"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -440,9 +449,9 @@ export const Step1: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="h-72 flex flex-col">
                 <div className="flex-1">
-                  <TimeSeriesChart 
-                    data={signal.data} 
-                    features={signal.features} 
+                  <TimeSeriesChart
+                    data={signal.data}
+                    features={signal.features}
                     targetFeature={signal.targetFeature}
                     title={workflow === 'regression' ? 'Device Status Features VS Target Feature' : undefined}
                   />
@@ -450,10 +459,10 @@ export const Step1: React.FC = () => {
               </div>
               <div className="h-72 flex flex-col">
                 <div className="flex justify-between items-center mb-2 px-2">
-                  
+
                 </div>
                 <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden relative">
-                   <ChartContainer data={signal.data} />
+                  <ChartContainer data={signal.data} />
                 </div>
               </div>
             </div>
@@ -473,7 +482,7 @@ export const Step1: React.FC = () => {
 
 const ChartContainer: React.FC<{ data: any[] }> = ({ data }) => {
   const [is3D, setIs3D] = useState(false);
-  
+
   // Unify data type for Step 1 to avoid Normal/Anomaly distinction
   const unifiedData = useMemo(() => data.map(d => ({ ...d, type: 'Data' })), [data]);
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Activity, TrendingUp } from 'lucide-react';
+import { Activity, TrendingUp, ArrowLeft } from 'lucide-react';
 
 export const WorkflowSelection: React.FC = () => {
   const { setWorkflow, setStep } = useApp();
@@ -10,9 +10,13 @@ export const WorkflowSelection: React.FC = () => {
     setStep(1);
   };
 
+  const handleBack = () => {
+    setStep(-1);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Select Workflow</h1>
+    <div className="flex flex-col items-center justify-center p-4">
+      <h1 className="text-3xl font-bold text-gray-900 mb-8">检测任务类型</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full">
         {/* Outliers Detection Card */}
         <div 

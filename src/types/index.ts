@@ -7,13 +7,21 @@ export interface Signal {
   targetFeature?: string; // For regression
   data: any[]; // Mock data for charts
   workflow?: WorkflowType;
+  deviceId?: string;
 }
 
 export type WorkflowType = 'outliers' | 'regression';
 
+export interface Device {
+  id: string;
+  name: string;
+  code: string;
+}
+
 export interface Model {
   id: string;
   name: string;
+  deviceId?: string;
   createdAt: string;
   status: 'training' | 'completed' | 'failed';
   type: string;
@@ -35,6 +43,7 @@ export interface Model {
 
 export interface Validation {
   id: string;
+  name: string;
   modelId: string;
   signalIds: string[]; // Changed from signalId
   createdAt: string;

@@ -18,7 +18,7 @@ export const Step2: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSignalIds, setSelectedSignalIds] = useState<string[]>([]);
   const [modelType, setModelType] = useState(workflow === 'regression' ? 'RandomForestRegressor' : 'Autoencoder');
-  
+
   // Preprocessing State
   const [preprocessing, setPreprocessing] = useState({
     standardization: true,
@@ -73,21 +73,21 @@ export const Step2: React.FC = () => {
       if (selectedSignalIds.length > 0) {
         const firstSignal = signals.find(s => s.id === selectedSignalIds[0]);
         const targetSignal = signals.find(s => s.id === signalId);
-        
+
         if (firstSignal && targetSignal) {
           const firstFeatures = firstSignal.features.slice().sort().join(',');
           const targetFeatures = targetSignal.features.slice().sort().join(',');
-          
+
           if (firstFeatures !== targetFeatures) {
             alert('Selected signal must have the same features as previously selected signals.');
             return;
           }
 
           if (workflow === 'regression') {
-             if (firstSignal.targetFeature !== targetSignal.targetFeature) {
-               alert('Selected signal must have the same target feature as previously selected signals.');
-               return;
-             }
+            if (firstSignal.targetFeature !== targetSignal.targetFeature) {
+              alert('Selected signal must have the same target feature as previously selected signals.');
+              return;
+            }
           }
         }
       }
@@ -165,46 +165,46 @@ export const Step2: React.FC = () => {
   // Merge data for visualization (simple concatenation for demo)
   const mergedData = useMemo(() => {
     const data = trainingSignals.flatMap(s => s.data);
-    
+
     if (displayModel?.workflow === 'regression' && displayModel.status === 'completed') {
-       // Mock regression results
-       const targetFeature = trainingSignals[0]?.targetFeature;
-       const std = 1.0; // Mock standard deviation of residuals
-       const threshold = std * 3;
-       
-       return data.map(d => {
-         const trueValue = targetFeature && d[targetFeature] !== undefined ? d[targetFeature] : 0;
-         // Mock prediction: slightly noisy version of true value
-         // Add some anomalies
-         const isAnomaly = d.type === 'Anomaly';
-         const noise = isAnomaly ? (Math.random() > 0.5 ? 4 : -4) : (Math.random() - 0.5) * std;
-         const predValue = trueValue + (isAnomaly ? 0 : noise); // Model predicts normal behavior, so true value deviates if anomaly? 
-         // Wait, "True value falls outside Model Pred +/- Threshold -> Alarm"
-         // If it's an anomaly in data, the model (trained on normal?) might predict "normal" value.
-         // Here we assume regression model predicts "expected" value.
-         // Let's say model predicts `trueValue` with small error usually.
-         // If `d.type === 'Anomaly'`, let's make the residual large.
-         
-         // Actually, if it's a regression model trained on history, it predicts Y based on X.
-         // If X is anomalous, Y might be anomalous prediction?
-         // User says: "Regression Residual... based on regression model... Alarm if True Value outside Pred +/- Threshold".
-         // This implies the model predicts "expected Y" given X. If "actual Y" is far from "predicted Y", it's an alarm.
-         
-         const residual = trueValue - predValue;
-         const isAlarm = Math.abs(residual) > threshold;
-         
-         return {
-           ...d,
-           trueValue,
-           predValue,
-           residual,
-           confidence: [predValue - threshold, predValue + threshold],
-           isAlarm,
-           targetFeature
-         };
-       });
+      // Mock regression results
+      const targetFeature = trainingSignals[0]?.targetFeature;
+      const std = 1.0; // Mock standard deviation of residuals
+      const threshold = std * 3;
+
+      return data.map(d => {
+        const trueValue = targetFeature && d[targetFeature] !== undefined ? d[targetFeature] : 0;
+        // Mock prediction: slightly noisy version of true value
+        // Add some anomalies
+        const isAnomaly = d.type === 'Anomaly';
+        const noise = isAnomaly ? (Math.random() > 0.5 ? 4 : -4) : (Math.random() - 0.5) * std;
+        const predValue = trueValue + (isAnomaly ? 0 : noise); // Model predicts normal behavior, so true value deviates if anomaly? 
+        // Wait, "True value falls outside Model Pred +/- Threshold -> Alarm"
+        // If it's an anomaly in data, the model (trained on normal?) might predict "normal" value.
+        // Here we assume regression model predicts "expected" value.
+        // Let's say model predicts `trueValue` with small error usually.
+        // If `d.type === 'Anomaly'`, let's make the residual large.
+
+        // Actually, if it's a regression model trained on history, it predicts Y based on X.
+        // If X is anomalous, Y might be anomalous prediction?
+        // User says: "Regression Residual... based on regression model... Alarm if True Value outside Pred +/- Threshold".
+        // This implies the model predicts "expected Y" given X. If "actual Y" is far from "predicted Y", it's an alarm.
+
+        const residual = trueValue - predValue;
+        const isAlarm = Math.abs(residual) > threshold;
+
+        return {
+          ...d,
+          trueValue,
+          predValue,
+          residual,
+          confidence: [predValue - threshold, predValue + threshold],
+          isAlarm,
+          targetFeature
+        };
+      });
     }
-    
+
     return data;
   }, [trainingSignals, displayModel]);
 
@@ -231,7 +231,7 @@ export const Step2: React.FC = () => {
           <Plus className="w-4 h-4" /> New Model
         </button>
 
-        <ModelList 
+        <ModelList
           models={models}
           selectedModelId={selectedModelId}
           onSelectModel={setSelectedModelId}
@@ -274,46 +274,46 @@ export const Step2: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">Training Signals</span>
-                        <div className="flex flex-wrap gap-2">
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">Training Signals</span>
+                      <div className="flex flex-wrap gap-2">
                         {trainingSignals.map(s => (
-                            <div key={s.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded border border-gray-200 text-sm">
+                          <div key={s.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded border border-gray-200 text-sm">
                             {s.name}
                             <SignalInfoTooltip signal={s} />
-                            </div>
+                          </div>
                         ))}
-                        </div>
+                      </div>
                     </div>
                     <div>
-                        <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">Training Metric</span>
-                        <div className="flex gap-4">
-                            {displayModel.workflow === 'regression' ? (
-                                <>
-                                    <div className="bg-white px-3 py-2 rounded border border-gray-200">
-                                        <span className="text-xs text-gray-500 block">OOB R² Score</span>
-                                        <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.oobR2?.toFixed(4) || 'N/A'}</span>
-                                    </div>
-                                    <div className="bg-white px-3 py-2 rounded border border-gray-200">
-                                        <span className="text-xs text-gray-500 block">Training R²</span>
-                                        <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.trainingR2?.toFixed(4) || 'N/A'}</span>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="bg-white px-3 py-2 rounded border border-gray-200">
-                                        <span className="text-xs text-gray-500 block">ROC Score</span>
-                                        <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.roc?.toFixed(4) || 'N/A'}</span>
-                                    </div>
-                                    <div className="bg-white px-3 py-2 rounded border border-gray-200">
-                                        <span className="text-xs text-gray-500 block">Precision</span>
-                                        <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.precision?.toFixed(4) || 'N/A'}</span>
-                                    </div>
-                                </>
-                            )}
-                        </div>
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">Training Metric</span>
+                      <div className="flex gap-4">
+                        {displayModel.workflow === 'regression' ? (
+                          <>
+                            <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                              <span className="text-xs text-gray-500 block">OOB R² Score</span>
+                              <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.oobR2?.toFixed(4) || 'N/A'}</span>
+                            </div>
+                            <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                              <span className="text-xs text-gray-500 block">Training R²</span>
+                              <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.trainingR2?.toFixed(4) || 'N/A'}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                              <span className="text-xs text-gray-500 block">ROC Score</span>
+                              <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.roc?.toFixed(4) || 'N/A'}</span>
+                            </div>
+                            <div className="bg-white px-3 py-2 rounded border border-gray-200">
+                              <span className="text-xs text-gray-500 block">Precision</span>
+                              <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.precision?.toFixed(4) || 'N/A'}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -326,7 +326,7 @@ export const Step2: React.FC = () => {
                         <TrueVsPredChart data={mergedData} targetName={trainingSignals[0]?.targetFeature || 'Target'} />
                       </div>
                     </div>
-                    
+
                     <div className="h-72 flex flex-col">
                       <div className="flex-1">
                         <ResidualDistributionChart data={mergedData} />
@@ -335,13 +335,13 @@ export const Step2: React.FC = () => {
 
                     <div className="h-72 flex flex-col">
                       <div className="flex-1">
-                         <FeatureImportanceChart features={featureImportance.features} importance={featureImportance.importance} />
+                        <FeatureImportanceChart features={featureImportance.features} importance={featureImportance.importance} />
                       </div>
                     </div>
 
                     <div className="h-72 flex flex-col">
                       <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden relative">
-                         <ChartContainer data={mergedData} />
+                        <ChartContainer data={mergedData} />
                       </div>
                     </div>
                   </div>
@@ -349,15 +349,15 @@ export const Step2: React.FC = () => {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="h-72 flex flex-col">
                       <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden relative">
-                         <ChartContainer data={mergedData} />
+                        <ChartContainer data={mergedData} />
                       </div>
                     </div>
-                    
+
                     <div className="h-72 flex flex-col">
-                        <h3 className="text-sm font-medium text-gray-500 mb-2">Anomaly Score</h3>
-                        <div className="flex-1">
-                          <AnomalyChart data={mergedData} threshold={0.8} />
-                        </div>
+                      <h3 className="text-sm font-medium text-gray-500 mb-2">Anomaly Score</h3>
+                      <div className="flex-1">
+                        <AnomalyChart data={mergedData} threshold={0.8} />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -410,28 +410,28 @@ export const Step2: React.FC = () => {
 
             {/* Data Preprocessing Tab */}
             <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                    <input
-                        type="checkbox"
-                        id="standardization"
-                        checked={preprocessing.standardization}
-                        onChange={(e) => setPreprocessing({ ...preprocessing, standardization: e.target.checked })}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="standardization" className="text-sm font-medium text-gray-700">Enable Standardization</label>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">PCA Components</label>
-                    <input
-                        type="number"
-                        min="0"
-                        value={preprocessing.pca}
-                        onChange={(e) => setPreprocessing({ ...preprocessing, pca: parseInt(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        placeholder="Enter number of components (0 for None)"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Enter 0 to disable PCA.</p>
-                </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="standardization"
+                  checked={preprocessing.standardization}
+                  onChange={(e) => setPreprocessing({ ...preprocessing, standardization: e.target.checked })}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                />
+                <label htmlFor="standardization" className="text-sm font-medium text-gray-700">Enable Standardization</label>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">PCA Components</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={preprocessing.pca}
+                  onChange={(e) => setPreprocessing({ ...preprocessing, pca: parseInt(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  placeholder="Enter number of components (0 for None)"
+                />
+                <p className="text-xs text-gray-500 mt-1">Enter 0 to disable PCA.</p>
+              </div>
             </div>
 
             {/* Model Parameters Tab */}
@@ -455,95 +455,95 @@ export const Step2: React.FC = () => {
                   )}
                 </select>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 {modelType === 'Autoencoder' && (
-                    <>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Epochs</label>
-                            <input type="number" value={parameters.epochs || ''} onChange={(e) => setParameters({...parameters, epochs: parseInt(e.target.value)})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Batch Size</label>
-                            <input type="number" value={parameters.batchSize || ''} onChange={(e) => setParameters({...parameters, batchSize: parseInt(e.target.value)})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Learning Rate</label>
-                            <input type="number" step="0.0001" value={parameters.learningRate || ''} onChange={(e) => setParameters({...parameters, learningRate: parseFloat(e.target.value)})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                        </div>
-                    </>
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Epochs</label>
+                      <input type="number" value={parameters.epochs || ''} onChange={(e) => setParameters({ ...parameters, epochs: parseInt(e.target.value) })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Batch Size</label>
+                      <input type="number" value={parameters.batchSize || ''} onChange={(e) => setParameters({ ...parameters, batchSize: parseInt(e.target.value) })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Learning Rate</label>
+                      <input type="number" step="0.0001" value={parameters.learningRate || ''} onChange={(e) => setParameters({ ...parameters, learningRate: parseFloat(e.target.value) })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                    </div>
+                  </>
                 )}
                 {modelType === 'VAE' && (
-                    <>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Epochs</label>
-                            <input type="number" value={parameters.epochs || ''} onChange={(e) => setParameters({...parameters, epochs: parseInt(e.target.value)})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Batch Size</label>
-                            <input type="number" value={parameters.batchSize || ''} onChange={(e) => setParameters({...parameters, batchSize: parseInt(e.target.value)})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Learning Rate</label>
-                            <input type="number" step="0.0001" value={parameters.learningRate || ''} onChange={(e) => setParameters({...parameters, learningRate: parseFloat(e.target.value)})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Latent Dim</label>
-                            <input type="number" value={parameters.latentDim || ''} onChange={(e) => setParameters({...parameters, latentDim: parseInt(e.target.value)})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                        </div>
-                    </>
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Epochs</label>
+                      <input type="number" value={parameters.epochs || ''} onChange={(e) => setParameters({ ...parameters, epochs: parseInt(e.target.value) })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Batch Size</label>
+                      <input type="number" value={parameters.batchSize || ''} onChange={(e) => setParameters({ ...parameters, batchSize: parseInt(e.target.value) })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Learning Rate</label>
+                      <input type="number" step="0.0001" value={parameters.learningRate || ''} onChange={(e) => setParameters({ ...parameters, learningRate: parseFloat(e.target.value) })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Latent Dim</label>
+                      <input type="number" value={parameters.latentDim || ''} onChange={(e) => setParameters({ ...parameters, latentDim: parseInt(e.target.value) })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                    </div>
+                  </>
                 )}
                 {modelType === 'IsolationForest' && (
-                    <>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">N Estimators</label>
-                            <input type="number" value={parameters.n_estimators || ''} onChange={(e) => setParameters({...parameters, n_estimators: parseInt(e.target.value)})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Contamination</label>
-                            <input type="number" step="0.01" value={parameters.contamination || ''} onChange={(e) => setParameters({...parameters, contamination: parseFloat(e.target.value)})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                        </div>
-                    </>
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">N Estimators</label>
+                      <input type="number" value={parameters.n_estimators || ''} onChange={(e) => setParameters({ ...parameters, n_estimators: parseInt(e.target.value) })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Contamination</label>
+                      <input type="number" step="0.01" value={parameters.contamination || ''} onChange={(e) => setParameters({ ...parameters, contamination: parseFloat(e.target.value) })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                    </div>
+                  </>
                 )}
                 {modelType === 'OneClassSVM' && (
-                    <>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Nu</label>
-                            <input type="number" step="0.01" value={parameters.nu || ''} onChange={(e) => setParameters({...parameters, nu: parseFloat(e.target.value)})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Kernel</label>
-                            <select value={parameters.kernel || 'rbf'} onChange={(e) => setParameters({...parameters, kernel: e.target.value})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm">
-                                <option value="rbf">RBF</option>
-                                <option value="linear">Linear</option>
-                                <option value="poly">Poly</option>
-                                <option value="sigmoid">Sigmoid</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Gamma</label>
-                            <select value={parameters.gamma || 'scale'} onChange={(e) => setParameters({...parameters, gamma: e.target.value})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm">
-                                <option value="scale">Scale</option>
-                                <option value="auto">Auto</option>
-                            </select>
-                        </div>
-                    </>
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Nu</label>
+                      <input type="number" step="0.01" value={parameters.nu || ''} onChange={(e) => setParameters({ ...parameters, nu: parseFloat(e.target.value) })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Kernel</label>
+                      <select value={parameters.kernel || 'rbf'} onChange={(e) => setParameters({ ...parameters, kernel: e.target.value })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm">
+                        <option value="rbf">RBF</option>
+                        <option value="linear">Linear</option>
+                        <option value="poly">Poly</option>
+                        <option value="sigmoid">Sigmoid</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Gamma</label>
+                      <select value={parameters.gamma || 'scale'} onChange={(e) => setParameters({ ...parameters, gamma: e.target.value })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm">
+                        <option value="scale">Scale</option>
+                        <option value="auto">Auto</option>
+                      </select>
+                    </div>
+                  </>
                 )}
                 {modelType === 'RandomForestRegressor' && (
-                    <>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">N Estimators</label>
-                            <input type="number" value={parameters.n_estimators || ''} onChange={(e) => setParameters({...parameters, n_estimators: parseInt(e.target.value)})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Max Depth</label>
-                            <input type="number" value={parameters.max_depth || ''} onChange={(e) => setParameters({...parameters, max_depth: parseInt(e.target.value)})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Min Samples Split</label>
-                            <input type="number" value={parameters.min_samples_split || ''} onChange={(e) => setParameters({...parameters, min_samples_split: parseInt(e.target.value)})} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                        </div>
-                    </>
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">N Estimators</label>
+                      <input type="number" value={parameters.n_estimators || ''} onChange={(e) => setParameters({ ...parameters, n_estimators: parseInt(e.target.value) })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Max Depth</label>
+                      <input type="number" value={parameters.max_depth || ''} onChange={(e) => setParameters({ ...parameters, max_depth: parseInt(e.target.value) })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Min Samples Split</label>
+                      <input type="number" value={parameters.min_samples_split || ''} onChange={(e) => setParameters({ ...parameters, min_samples_split: parseInt(e.target.value) })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" />
+                    </div>
+                  </>
                 )}
               </div>
             </div>
