@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Modal } from '../components/ui/Modal';
 import { Tabs } from '../components/ui/Tabs';
-import { Plus, Play, CheckCircle, Activity, Edit2, Trash2, Check, X } from 'lucide-react';
+import { Plus, Play, CheckCircle, Activity, Edit2, Trash2, Check, X, Rocket, Eye, ArrowLeft } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { PCAChart } from '../components/charts/PCAChart';
 import { AnomalyChart } from '../components/charts/AnomalyChart';
@@ -50,11 +50,31 @@ export const StepModelTrainingValidation: React.FC = () => {
     validations,
     addValidation,
     updateValidation,
-    removeValidation
+    removeValidation,
+    deployedModelId,
+    setDeployedModelId
   } = useApp();
 
-  // Tab State: 'training' or 'validation'
-  const [activeTab, setActiveTab] = useState<'training' | 'validation'>('training');
+  // Tab State: 'training' or 'validation' or 'deployment'
+  const [activeTab, setActiveTab] = useState<'training' | 'validation' | 'deployment'>('training');
+
+  // ==================== DEPLOYMENT STATE ====================
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [alarmText, setAlarmText] = useState('');
+  const [showRealtimePreview, setShowRealtimePreview] = useState(false);
+  const [realtimeData, setRealtimeData] = useState<any[]>([]);
+  const previewIntervalRef = useRef<number | null>(null);
+
+  const defaultAlarmText = useMemo(() => {
+    const taskType = workflow === 'regression' ? 'Regression Residual' : 'Outliers Detection';
+    return `AI ${taskType} 告警：检测到旋转设备运行参数异常，可能存在潜在设备故障风险。请及时检查设备状态并进行必要的维护。`;
+  }, [workflow]);
+
+  useEffect(() => {
+    if (!alarmText) {
+      setAlarmText(defaultAlarmText);
+    }
+  }, [defaultAlarmText, alarmText]);
 
   // ==================== TRAINING STATE ====================
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -339,6 +359,81 @@ export const StepModelTrainingValidation: React.FC = () => {
     setSelectedValidationId(prev => (prev === id ? nextSelected : prev));
   };
 
+  const handleToggleDeploy = () => {
+    if (!displayModel) return;
+    if (deployedModelId === displayModel.id) {
+      setDeployedModelId(null);
+      setShowRealtimePreview(false);
+    } else {
+      setIsDeploying(true);
+      setTimeout(() => {
+        setDeployedModelId(displayModel.id);
+        setIsDeploying(false);
+      }, 2000);
+    }
+  };
+
+  // Realtime Data Simulation
+  useEffect(() => {
+    if (showRealtimePreview && displayModel) {
+      // Initialize with some data
+      const initialData = Array.from({ length: 20 }, (_, i) => generateMockPoint(i, displayModel));
+      setRealtimeData(initialData);
+
+      let counter = 20;
+      previewIntervalRef.current = window.setInterval(() => {
+        setRealtimeData(prev => {
+          const newData = [...prev.slice(1), generateMockPoint(counter++, displayModel)];
+          return newData;
+        });
+      }, 1000);
+    } else {
+      if (previewIntervalRef.current) {
+        clearInterval(previewIntervalRef.current);
+      }
+      setRealtimeData([]);
+    }
+
+    return () => {
+      if (previewIntervalRef.current) {
+        clearInterval(previewIntervalRef.current);
+      }
+    };
+  }, [showRealtimePreview, displayModel]);
+
+  const generateMockPoint = (index: number, model: any) => {
+    const std = 1.0;
+    const threshold = std * 3;
+    const isAnomaly = Math.random() > 0.9;
+    const noise = isAnomaly ? (Math.random() > 0.5 ? 4 : -4) : (Math.random() - 0.5) * std;
+    
+    if (model.workflow === 'regression') {
+       const trueValue = Math.sin(index * 0.2) * 5;
+       const predValue = trueValue + (isAnomaly ? 0 : noise);
+       const residual = trueValue - predValue;
+       return {
+         time: index,
+         trueValue,
+         predValue,
+         residual,
+         confidence: [predValue - threshold, predValue + threshold],
+         isAlarm: Math.abs(residual) > threshold,
+         x: Math.random() * 10,
+         y: Math.random() * 10,
+         z: Math.random() * 10,
+       };
+    } else {
+      return {
+        time: index,
+        anomalyScore: isAnomaly ? 0.85 + Math.random() * 0.15 : Math.random() * 0.7,
+        type: isAnomaly ? 'Anomaly' : 'Normal',
+        x: isAnomaly ? 8 + Math.random() * 4 : Math.random() * 5,
+        y: isAnomaly ? 8 + Math.random() * 4 : Math.random() * 5,
+        z: isAnomaly ? 8 + Math.random() * 4 : Math.random() * 5,
+      };
+    }
+  };
+
   return (
     <div className="flex h-full gap-6 flex-col">
        {/* Top Switcher */}
@@ -365,6 +460,17 @@ export const StepModelTrainingValidation: React.FC = () => {
          >
            Model Validation
          </button>
+         <button
+           onClick={() => setActiveTab('deployment')}
+           className={cn(
+             "flex-1 py-2 rounded-md text-sm font-medium transition-colors text-center",
+             activeTab === 'deployment' 
+               ? "bg-indigo-100 text-indigo-700 shadow-sm" 
+               : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+           )}
+         >
+           Model Deployment
+         </button>
        </div>
 
        <div className="flex h-full gap-6 flex-1 min-h-0">
@@ -377,7 +483,7 @@ export const StepModelTrainingValidation: React.FC = () => {
               >
                 <Plus className="w-4 h-4" /> New Model
               </button>
-            ) : (
+            ) : activeTab === 'validation' ? (
                <button
                 onClick={() => setIsValidationModalOpen(true)}
                 disabled={!displayModel || displayModel.status !== 'completed' || !!displayModel.isValidating}
@@ -385,13 +491,14 @@ export const StepModelTrainingValidation: React.FC = () => {
               >
                 <Play className="w-4 h-4" /> New Validation
               </button>
-            )}
+            ) : null}
 
             <ModelList
               models={models}
               selectedModelId={selectedModelId}
               onSelectModel={setSelectedModelId}
               displayModelId={displayModel?.id}
+              deployedModelId={deployedModelId}
             />
           </div>
 
@@ -624,6 +731,144 @@ export const StepModelTrainingValidation: React.FC = () => {
                       </div>
                     )}
                   </>
+                )}
+
+                {activeTab === 'deployment' && (
+                  <div className="w-full max-w-4xl mx-auto space-y-8 pt-10">
+                    {showRealtimePreview ? (
+                      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm animate-in fade-in zoom-in duration-300">
+                        <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => setShowRealtimePreview(false)}
+                              className="p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                            >
+                              <ArrowLeft className="w-5 h-5" />
+                            </button>
+                            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                              <Activity className="w-6 h-6 text-green-500" />
+                              Real-time Monitoring: {displayModel.name}
+                            </h2>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="relative flex h-3 w-3">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                            </span>
+                            <span className="text-sm font-medium text-green-600">System Active</span>
+                          </div>
+                        </div>
+
+                        {displayModel.workflow === 'regression' ? (
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div className="h-72 flex flex-col">
+                              <h3 className="text-sm font-medium text-gray-500 mb-2">Real-time True vs Predicted</h3>
+                              <div className="flex-1">
+                                <TrueVsPredChart data={realtimeData} targetName={trainingSignals[0]?.targetFeature || 'Target'} />
+                              </div>
+                            </div>
+                            <div className="h-72 flex flex-col">
+                              <h3 className="text-sm font-medium text-gray-500 mb-2">Real-time Residuals</h3>
+                              <div className="flex-1">
+                                <ResidualDistributionChart data={realtimeData} />
+                              </div>
+                            </div>
+                            <div className="h-72 flex flex-col">
+                              <h3 className="text-sm font-medium text-gray-500 mb-2">Feature Importance (MDI)</h3>
+                              <div className="flex-1">
+                                <FeatureImportanceChart features={featureImportance.features} importance={featureImportance.importance} />
+                              </div>
+                            </div>
+                            <div className="h-72 flex flex-col">
+                               <h3 className="text-sm font-medium text-gray-500 mb-2">Feature Embedding Space (Live)</h3>
+                               <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden relative">
+                                 <ChartContainer data={realtimeData} />
+                               </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div className="h-80 flex flex-col">
+                              <h3 className="text-sm font-medium text-gray-500 mb-2">Real-time Anomaly Score</h3>
+                              <div className="flex-1">
+                                <AnomalyChart data={realtimeData} threshold={0.8} />
+                              </div>
+                            </div>
+                            <div className="h-80 flex flex-col">
+                              <h3 className="text-sm font-medium text-gray-500 mb-2">Feature Embedding Space (Live)</h3>
+                              <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden relative">
+                                <ChartContainer data={realtimeData} />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="bg-gray-50 rounded-2xl p-8 border border-gray-100 text-center">
+                        <div className={cn(
+                          "w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-all",
+                          deployedModelId === displayModel.id ? "bg-green-100" : "bg-indigo-100"
+                        )}>
+                          {isDeploying ? (
+                            <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                          ) : deployedModelId === displayModel.id ? (
+                            <CheckCircle className="w-8 h-8 text-green-600" />
+                          ) : (
+                            <Rocket className="w-8 h-8 text-indigo-600" />
+                          )}
+                        </div>
+
+                        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                          {deployedModelId === displayModel.id ? 'Model Deployed' : 'Deploy Model'}
+                        </h2>
+
+                        <p className="text-gray-500 mb-8 max-w-md mx-auto">
+                          {deployedModelId === displayModel.id
+                            ? `This model is currently running in production environment. It has been active since ${new Date().toLocaleDateString()}.`
+                            : "Deploy this model to production environment. This will replace the currently active model."
+                          }
+                        </p>
+
+                        <div className="mb-8 max-w-2xl mx-auto text-left">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            报警文言
+                          </label>
+                          <textarea
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            rows={4}
+                            value={alarmText}
+                            onChange={(e) => setAlarmText(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="flex gap-4 justify-center" title={!modelValidations.length ? "当前模型未验证，无法部署！" : ""}>
+                          <button
+                            onClick={handleToggleDeploy}
+                            disabled={isDeploying || !modelValidations.length}
+                            className={cn(
+                              "px-8 py-3 rounded-lg font-medium shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2",
+                              !modelValidations.length
+                                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                : deployedModelId === displayModel.id
+                                  ? "bg-red-100 text-red-700 hover:bg-red-200 focus:ring-red-500"
+                                  : "bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500"
+                            )}
+                          >
+                            {isDeploying ? 'Deploying...' : deployedModelId === displayModel.id ? 'Cancel Deployment' : 'Deploy to Production'}
+                          </button>
+
+                          {deployedModelId === displayModel.id && !isDeploying && (
+                             <button
+                               onClick={() => setShowRealtimePreview(true)}
+                               className="px-8 py-3 rounded-lg font-medium shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 bg-blue-100 text-blue-700 hover:bg-blue-200 focus:ring-blue-500 flex items-center gap-2"
+                             >
+                               <Eye className="w-5 h-5" /> 实时监控预览
+                             </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             ) : (

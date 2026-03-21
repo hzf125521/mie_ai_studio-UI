@@ -6,8 +6,7 @@ import { CheckCircle, Circle } from 'lucide-react';
 const steps = [
   { id: 0, title: 'Step 1: Workflow' },
   { id: 1, title: 'Step 2: Signal Preparation' },
-  { id: 2, title: 'Step 3: Model Training & Validation' },
-  { id: 3, title: 'Step 4: Model Deployment' },
+  { id: 2, title: 'Step 3: Model Management' },
 ];
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
