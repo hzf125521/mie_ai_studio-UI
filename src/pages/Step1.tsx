@@ -91,6 +91,9 @@ export const Step1: React.FC = () => {
   const [selectedFeatures, setSelectedFeatures] = useState<Record<string, string[]>>({});
   // Target Selection for Regression
   const [selectedTarget, setSelectedTarget] = useState<string>('');
+  
+  // Preview Signal State
+  const [previewSignal, setPreviewSignal] = useState<any | null>(null);
 
   // Filter State
   const [filterName, setFilterName] = useState('');
@@ -103,6 +106,7 @@ export const Step1: React.FC = () => {
 
   // Clean up selected features when target changes
   useEffect(() => {
+    setPreviewSignal(null);
     if (selectedTarget) {
       const parts = selectedTarget.split('_');
       if (parts.length === 2) {
@@ -125,9 +129,10 @@ export const Step1: React.FC = () => {
 
   const handleFeatureChange = (pointId: string, features: string[]) => {
     setSelectedFeatures(prev => ({ ...prev, [pointId]: features }));
+    setPreviewSignal(null); // Clear preview when form changes
   };
 
-  const handleAddSignal = () => {
+  const generateSignalData = () => {
     const now = new Date();
     const timeString = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
     let name = `Signal_${timeString}`;
@@ -146,20 +151,20 @@ export const Step1: React.FC = () => {
 
     if (flatFeatures.length === 0) {
       alert('Please select at least one feature.');
-      return;
+      return null;
     }
 
     if (workflow === 'regression' && !selectedTarget) {
       alert('Please select a target feature (y).');
-      return;
+      return null;
     }
 
     if (workflow === 'regression' && flatFeatures.includes(selectedTarget)) {
       alert('Target feature cannot be one of the input features.');
-      return;
+      return null;
     }
 
-    const id = `sig-${Date.now()}`;
+    const id = `sig-preview-${Date.now()}`;
     // Generate data
     const mockData = Array.from({ length: 50 }, (_, i) => {
       const point: any = { time: i };
@@ -183,7 +188,7 @@ export const Step1: React.FC = () => {
       return point;
     });
 
-    addSignal({
+    return {
       id,
       name,
       createdAt: now.toISOString(),
@@ -191,7 +196,38 @@ export const Step1: React.FC = () => {
       features: flatFeatures,
       targetFeature: workflow === 'regression' ? selectedTarget : undefined,
       data: mockData,
-    });
+      isPreview: true, // Mark as preview
+    };
+  };
+
+  const handlePreviewSignal = () => {
+    const newSignal = generateSignalData();
+    if (newSignal) {
+      setPreviewSignal(newSignal);
+    }
+  };
+
+  const handleAddSignal = () => {
+    let signalToAdd = previewSignal;
+    
+    // If no preview, or form changed, generate new
+    if (!signalToAdd) {
+      signalToAdd = generateSignalData();
+    }
+
+    if (signalToAdd) {
+      const finalSignal = {
+        ...signalToAdd,
+        id: `sig-${Date.now()}`,
+        isPreview: false,
+      };
+      addSignal(finalSignal);
+      setPreviewSignal(null);
+      
+      // Optionally reset form
+      // setSelectedFeatures({});
+      // setSelectedTarget('');
+    }
   };
 
   const toggleSignalSelection = (id: string) => {
@@ -238,14 +274,20 @@ export const Step1: React.FC = () => {
 
   // Determine which signals to show in right panel
   const displaySignals = useMemo(() => {
+    let signalsToShow = [];
+    if (previewSignal) {
+      signalsToShow.push(previewSignal);
+    }
+
     if (selectedSignalIds.length > 0) {
       // Show selected signals
-      return signals.filter(s => selectedSignalIds.includes(s.id));
+      signalsToShow = [...signalsToShow, ...signals.filter(s => selectedSignalIds.includes(s.id))];
     } else {
       // Show 3 newest signals
-      return [...signals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 3);
+      signalsToShow = [...signalsToShow, ...[...signals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 3)];
     }
-  }, [selectedSignalIds, signals]);
+    return signalsToShow;
+  }, [previewSignal, selectedSignalIds, signals]);
 
   const handleRemoveSignal = (id: string) => {
     // Check if signal is used in any model or validation
@@ -292,7 +334,7 @@ export const Step1: React.FC = () => {
                 <label className="block text-xs font-medium text-gray-700 mb-1">Target Feature (y)</label>
                 <select
                   value={selectedTarget}
-                  onChange={(e) => setSelectedTarget(e.target.value)}
+                  onChange={(e) => { setSelectedTarget(e.target.value); setPreviewSignal(null); }}
                   className="w-full bg-white border border-gray-300 rounded-md py-1.5 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
                 >
                   <option value="">Select target...</option>
@@ -315,7 +357,7 @@ export const Step1: React.FC = () => {
                 <input
                   type="datetime-local"
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  onChange={(e) => { setStartTime(e.target.value); setPreviewSignal(null); }}
                   className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs"
                 />
               </div>
@@ -324,17 +366,25 @@ export const Step1: React.FC = () => {
                 <input
                   type="datetime-local"
                   value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
+                  onChange={(e) => { setEndTime(e.target.value); setPreviewSignal(null); }}
                   className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs"
                 />
               </div>
             </div>
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            <button
+              onClick={handlePreviewSignal}
+              className="w-full flex justify-center py-2 px-4 border border-indigo-600 rounded-md shadow-sm text-sm font-medium text-indigo-600 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              信号筛选预览
+            </button>
             <button
               onClick={handleAddSignal}
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
-              Add Signal
+              添加信号样本
             </button>
+          </div>
           </div>
         </div>
 
@@ -436,10 +486,15 @@ export const Step1: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto space-y-6 pr-2">
         {displaySignals.map((signal) => (
-          <div key={signal.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transition-all hover:shadow-md">
+          <div key={signal.id} className={cn("bg-white rounded-xl shadow-sm border p-6 transition-all hover:shadow-md", signal.isPreview ? "border-indigo-300 ring-1 ring-indigo-100" : "border-gray-200")}>
             <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-semibold text-gray-900">{signal.name}</h3>
+                {signal.isPreview && (
+                  <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-0.5 rounded-full font-medium border border-indigo-200">
+                    预览
+                  </span>
+                )}
                 <SignalInfoTooltip signal={signal} />
               </div>
               <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-600">
