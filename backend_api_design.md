@@ -1,10 +1,6 @@
-# 智能模型工作站 (MIE AI Studio) 后端开发文档
-
-本文档基于前端项目分析，重新设计了适用于生产环境的后端数据结构和 RESTful API 接口。
+# 数理模型训练部署 (MIE AI Studio) 后端开发文档
 
 ## 1. 数据结构设计 (Data Model Design)
-
-> **注意**：针对时序数据（Signal Data），关系型数据库不适合存储海量数据点。建议将核心实体元数据存储在关系型数据库（如 MySQL/PostgreSQL），而实际的时序数据存储在时序数据库（如 InfluxDB, TDengine）或对象存储（S3, MinIO）中。
 
 ### 1.1 设备 (Device)
 代表需要进行数据采集和模型训练的物理设备（如泵站、压缩机等）。
@@ -29,7 +25,7 @@
 - `end_time`: `DateTime` - 截取时序数据的结束时间
 - `features`: `JSON` (String Array) - 选中的特征列名列表，例如 `["PointA_Temp", "PointA_Pressure"]`
 - `target_feature`: `String` - 目标特征列名（仅在 `workflow = regression` 时有效，否则为 null）
-- `data_path`: `String` - 时序数据的存储路径（如 S3 URL 或 TSDB 的表名）
+- `2D_PCA_DATA`: `JSON` - 2D PCA 降维后的数据
 - `created_by`: `String` - 创建人ID
 - `created_at`: `DateTime` - 创建时间
 - `updated_by`: `String` - 最后一次修改人ID
@@ -81,19 +77,19 @@
 - `deleted_by`: `String` - 删除操作人ID
 - `deleted_at`: `DateTime` - 删除时间
 
-### 1.5 部署记录 (Deployment)
+### 1.5 部署记录 (模型与记录 1:N, 能够追溯历史部署记录)
 记录某个设备在特定工作流下，当前处于激活（Deployed）状态的模型。
 - `id`: `String` (UUID) - 主键
 - `device_id`: `String` - 设备ID
 - `workflow`: `Enum('outliers', 'regression')` - 工作流类型
-- `model_id`: `String` - 部署的模型ID（为 null 表示卸载/无部署）
-- `deployed_by`: `String` - 部署操作人ID
-- `deployed_at`: `DateTime` - 部署时间
+- `model_id`: `String` - 部署的模型ID
+- `alarm_message`: `String` - 报警消息模板（用于触发报警时的自定义消息）
+- `is_active`: `Boolean` - 是否为当前激活部署记录
+- `created_by`: `String` - 创建人ID (发起部署的人)
+- `created_at`: `DateTime` - 创建时间 (部署时间)
+- `undeployed_at`: `DateTime` - 卸载时间 (当被替换或取消部署时记录)
 - `updated_by`: `String` - 最后一次修改人ID
 - `updated_at`: `DateTime` - 最后一次修改时间
-- `is_deleted`: `Boolean` - 是否已删除 (逻辑删除标记，代表该部署记录被废弃/覆盖)
-- `deleted_by`: `String` - 删除操作人ID
-- `deleted_at`: `DateTime` - 删除时间
 > *业务规则：同一个 `device_id` + `workflow` 组合只能有一条激活的部署记录。*
 
 ---
@@ -179,49 +175,38 @@
   }
   ```
 
-#### 获取数据集列表（前端默认对前三个执行“获取数据集的时序数据明细”）
+#### 获取数据集列表（前端默认对前三个执行“预览特征信号”）
 - 5865后端
 - **用途**：`Step2`信号样本构建页面 和 `Step3` 模型训练/验证页面中，获取当前设备和工作流下的所有信号样本数据集
-- **接口**：`GET /ML/datasets`
+- **接口**：`GET /ML/datasets/GetDatasetList`
 - **Query 参数**：
   - `device_id` (必填)
   - `workflow` (必填)
   - `page`, `size` (选填)
   - `start_time`, `end_time` (选填，按时间范围过滤数据集)
-- **输出**：带分页的数据集对象列表（不包含具体时序数据）
+- **输出**：带分页的数据集对象列表（不包含具体时序数据、包含2D_PCA_DATA）
 
 #### 更新数据集 (重命名)
 - 5865后端
 - **用途**：`Step2` 页面中重命名信号
-- **接口**：`PUT /ML/datasets/{id}`
+- **接口**：`PUT /ML/datasets/UpdateDataset`
+- **Query 参数**：
+  - `dataset_id` (必填)
 - **输入**：`{ "name": "New_Signal_Name" }`
 - **输出**：更新后的数据集对象
 
 #### 删除数据集
 - 5865后端
 - **用途**：`Step2` 页面中删除信号
-- **接口**：`DELETE /ML/datasets/{id}`
-- **输出**：`{ "success": true }`
-
-#### 获取数据集的时序数据明细
-- 5865后端
-- **用途**：`Step2` 页面中，获取某个信号样本数据集的 源信号信息 和PCA数据。源信号信息通过“预览特征信号”接口获取原始特征序列。
-- **接口**：`GET /ML/datasets/detail`
+- **接口**：`DELETE /ML/DeleteDataset`
 - **Query 参数**：
   - `dataset_id` (必填)
-- **输出**：
-  ```json
-  {
-    "data": [
-      { "time": 1, "PointA_Temp": 23.5, "PointA_Pressure": 101.2, "anomalyScore": 0.1, "type": "Normal" },
-      ...
-    ]
-  }
-  ```
+- **输出**：`{ "success": true }`
+
 #### 创建数据集 (添加信号)
 - 5865后端
 - **用途**：`Step2`页面中，用户选择特征、时间范围后，点击"Add Signal"按钮，将信号样本数据的元信息和计算的PCA主成分入库
-- **接口**：`POST /ML/datasets`
+- **接口**：`POST /ML/CreateDataset`
 - **输入**：
   ```json
   {
@@ -232,7 +217,7 @@
     "end_time": "2023-01-02T00:00:00Z",
     "features": ["PointA_Temp", "PointA_Pressure"],
     "target_feature": null ,
-    "PCA": {}
+    "PCA": {} 
   }
   ```
 
@@ -240,24 +225,25 @@
 
 #### 获取模型列表（前端默认对第一个执行“获取模型详情”）（前段轮训，刷新模型状态）
 - 5865后端
-- **用途**：在`Step3`页面的“训练Tab”和“验证Tab”中，用户查看全部模型。或在`Step4`的部署页中只查看满足部署条件的模型。
+- **用途**：在`Step3`页面的3个Tab页中，列出全部模型。
 - **接口**：`GET /ML/GetModelList`
 - **Query 参数 (选填)**：
   - `device_id`: `String` - 筛选特定设备
   - `workflow`: `Enum('outliers', 'regression')` - 筛选特定工作流
-  - `status`: `String` - 按状态筛选 (如 `'training'、'trained'、'failed'`)
-  - `has_validations`: `Boolean` - 是否必须有关联的验证记录 (用于部署页过滤)
-  - `is_deployed`: `Boolean` - 是否为当前激活部署的模型
+  <!-- - `status`: `String` - 按状态筛选 (如 `'training'、'trained'、'failed'`)
+  - `has_validations`: `Boolean` - 是否有成功的验证记录
+  - `is_deployed`: `Boolean` - 是否为当前激活部署的模型 -->
   - `page`: `Integer` (默认 1)
   - `size`: `Integer` (默认 20)
-- **业务场景参数设置示例**：
-  - **Step 3 (Train / Validation 阶段)**：获取该设备和工作流下的所有历史模型（包含正在训练、已训练完成、失败的模型）。
+<!-- - **业务场景参数设置示例**：
+  - **(Train / Validation 阶段)**：获取该设备和工作流下的所有历史模型（包含正在训练、已训练完成、失败的模型）。
     `GET /ML/models?device_id=dev-1&workflow=outliers&page=1&size=20`
-  - **Step 4 (Deployment 部署阶段)**：只获取已训练完成，**且**至少经过一次验证的“可部署”模型。
-    `GET /ML/models?device_id=dev-1&workflow=outliers&status=trained&has_validations=true&page=1&size=20`
-- **输出**：带分页的模型对象列表（包含基础信息、状态和评估指标，不包含 `train_artifacts`）。
+  - **(Deployment 部署阶段)**：只获取已训练完成，**且**至少经过一次验证的“可部署”模型。
+    `GET /ML/models?device_id=dev-1&workflow=outliers&status=trained&has_validations=true&page=1&size=20` -->
+- **输出**：带分页的模型对象列表（包含基础信息、状态和评估指标，不包含 `train_artifacts`）。模型状态需要根据模型数据结构、验证数据结构、部署数据结构综合进行判断。
 
-#### 获取模型详情
+
+#### 获取模型训练详情
 - 5865后端
 - **用途**：模型信息、信号元信息、指标、2D/3D PCA主成分（非实际信号预处理时的PCA）、异常分数、阈值等训练阶段输出的产物train_artifacts。
 - **接口**：`GET /ML/GetModelDetail`
@@ -363,7 +349,7 @@
   - `validation_id` (必填)
 - **输出**：单个验证记录对象的完整信息（包含 `validation_artifacts`）。
 
-#### 修改验证记录、
+#### 修改验证记录
 - 5865后端
 - **接口**：`PUT /ML/CreateOrUpdateValidation` 
 - **输入**：`{"validation_id": "val-1", "name": "New_Validation_Name" }`
@@ -395,24 +381,134 @@
 ### 2.5 模型部署 (Deployments)
 
 #### 部署/激活模型
+- 5865后端
 - **用途**：将某个模型部署为该设备、该工作流下的“当前激活”模型（用于实时推断）
-- **接口**：`POST /ML/deployments`
+- **接口**：`POST /ML/DeployModel`
 - **输入**：
   ```json
   {
     "device_id": "dev-1",
     "workflow": "outliers",
-    "model_id": "model-1"
+    "model_id": "model-1",
+    "alarm_message": "AI Outliers Detection 告警：检测到旋转设备运行参数异常，可能存在潜在设备故障风险。请及时检查设备状态并进行必要的维护。"
   }
   ```
 - **输出**：部署记录对象。
+- **后端执行操作说明**：
+  1. 查找该 `device_id` 和 `workflow` 组合下，当前 `is_active = true` 的旧部署记录（如果存在）。
+  2. 若存在旧记录，将其 `is_active` 更新为 `false`，并记录 `undeployed_at` 为当前时间（相当于卸载旧模型，但不删除记录以保留历史）。
+  3. 创建一条新的部署记录，将传入的 `model_id` 等信息入库，并设置 `is_active = true`。
 
-#### 卸载模型
+#### 取消/卸载模型
+- 5865后端
 - **用途**：取消设备在该工作流下的当前模型部署
-- **接口**：`DELETE /ML/deployments?device_id=dev-1&workflow=outliers`
+- **接口**：`DELETE /ML/UnDeployModel?device_id=dev-1&workflow=outliers`
 - **输出**：`{ "success": true }`
+- **后端执行操作说明**：
+  1. 查找该 `device_id` 和 `workflow` 组合下，当前 `is_active = true` 的部署记录。
+  2. 将该记录的 `is_active` 字段更新为 `false`，并记录 `undeployed_at` 为当前时间。
+  3. **注意**：为了追溯历史部署记录，**不要**物理删除（硬删除）该记录。
 
-#### 获取当前部署状态
-- **用途**：应用初始化时，获取所有设备当前的部署状态
-- **接口**：`GET /ML/deployments`
-- **输出**：部署记录列表（如 `[{"device_id": "dev-1", "workflow": "outliers", "model_id": "model-1"}]`）
+#### 获取部署记录
+- 5865后端
+- **用途**：根据`device_id` 和 `workflow`获取设备的部署记录
+- **接口**：`GET /ML/GetDeploymentRecord`
+- **Query 参数**：
+  - `device_id` (必填)
+  - `workflow` (必填)
+- **输出**：部署记录对象（如 `{"device_id": "dev-1", "workflow": "outliers", "model_id": "model-1"}`）
+
+
+### 2.6. 报警检测任务 (实时监控与推理工作流)
+- 8840后端与5865后端协同实现
+
+定时检测工作流说明：
+8840 端配置一个全局的定时任务（Cron Job），按设定频率（如每分钟或每5分钟）周期性执行，整体工作流如下：
+
+1. **获取当前有效部署**：8840 端调用 5865 接口（`GetAllActiveDeployments`），获取当前系统中**所有**处于激活状态（`is_active=true`）的部署记录，得知哪些设备正在使用哪些模型进行在线检测。
+2. **获取模型元数据**：针对每一条部署记录，8840 根据 `model_id` 调用 5865 的“获取模型详情”接口（`GetModelDetail`）。提取执行推理所需的关键信息：`train_features`（输入的特征列名称和顺序）、`preprocessing`（预处理配置）、模型文件路径，以及训练时计算出的判定阈值（记录在 `train_artifacts` 中）。
+3. **获取设备最新数据**：8840 调用 5865 接口（或直接查询时序数据库），根据 `device_id` 和 `train_features` 获取过去一个时间窗口内（与模型要求的时间步长一致）的最新的源特征序列。
+4. **模型推理与特征预处理**：
+   - 8840 端加载对应的机器学习模型。
+   - 对获取到的最新数据执行与训练阶段相同的预处理（如标准化、PCA降维等）。
+   - 将处理后的数据输入模型，计算出当前时间片段的**异常分数**（针对 outliers 工作流）或**预测值**（针对 regression 工作流）。
+5. **判定与结果存储**：
+   - **记录推理历史**：将本次推理的连续结果（包括原始数据时间戳、推理分数、残差等，类似于 `validation_artifacts`）直接写入**时序数据库**（此步骤数据量较大，不应存入关系型数据库，后续可供前端实时监控图表查询，本篇暂不详细展开）。
+   - **阈值判定与告警**：将推理得出的异常分数或误差与模型设定的阈值进行比较。**如果超出阈值**，则代表检测到异常，8840 端调用 5865 接口（`CreateAlarm`）在关系型数据库中生成一条**告警记录 (Alarm)**，并将该次检测的关键现场证据一并保存，告警消息采用部署记录中配置的 `alarm_message` 模板。
+
+
+#### 获取所有激活的部署记录
+- 5865后端
+- **用途**：供 8840 定时任务获取当前系统中所有正在运行监控任务的部署记录，作为定时检测的起始依据。
+- **接口**：`GET /ML/GetAllActiveDeployments`
+- **输出**：
+  ```json
+  [
+    {
+      "id": "dep-1",
+      "device_id": "dev-1",
+      "workflow": "outliers",
+      "model_id": "model-1",
+      "alarm_message": "..."
+    }
+  ]
+  ```
+
+#### 获取设备最新特征数据
+- 5865后端 
+- **用途**：供 8840 获取执行单次推理所需的特征数据（默认为一个时刻）。
+- **接口**：`POST /ML/GetLatestFeature`
+- **输入**：
+  ```json
+  {
+    "device_id": "dev-1",
+    "features": ["PointA_Temp", "PointA_Pressure"]
+      }
+  ```
+- **输出**：
+  ```json
+  {
+    "data": [
+      { "time": 1672531200000, "PointA_Temp": 24.1, "PointA_Pressure": 101.5 }    ]
+  }
+  ```
+
+#### 推送每次检测结果（与机理模型的报警任务以隔离的？）
+- 5865后端
+- **用途**：8840 端把每次推理（检测）的结果写入数据库。推理中间计算量在evidence_artifacts中，在外层再暴露一个“is_alarm”字段。
+- **接口**：`POST /ML/CreateAlarm`
+- **输入**：
+  ```json
+  {
+    "device_id": "dev-1",
+    "model_id": "model-1",
+    "deployment_id": "dep-1",
+    "workflow": "outliers",
+    "alarm_time": "2023-01-01T12:05:00Z",
+    "alarm_message": "检测到旋转设备运行参数异常，可能存在潜在故障风险...",
+    "trigger_value": 0.85,
+    "threshold": 0.70,
+    "evidence_artifacts": {
+      "input_snapshot": [
+        { "time": 1672531500000, "PointA_Temp": 89.5, "PointA_Pressure": 150.2 }
+      ],
+      "feature_contributions": { "PointA_Temp": 0.6, "PointA_Pressure": 0.4 }
+    }
+  }
+  ```
+- **输出**：创建成功的告警记录对象
+
+#### 告警记录数据结构 (Alarm)
+只记录判定为异常的**告警事件快照**。
+- `id`: `String` (UUID) - 主键
+- `device_id`: `String` - 报警所属设备ID
+- `model_id`: `String` - 触发报警的模型ID
+- `deployment_id`: `String` - 关联的具体部署记录ID
+- `workflow`: `Enum('outliers', 'regression')` - 工作流类型
+- `alarm_time`: `DateTime` - 触发告警的时间戳
+- `alarm_message`: `String` - 告警消息文本（继承自部署记录的 `alarm_message`）
+- `trigger_value`: `Number` - 触发告警的具体异常分数或偏差值
+- `threshold`: `Number` - 判定异常的阈值基准
+- `evidence_artifacts`: `JSON` - 告警现场的证据快照（例如当时输入模型的各特征值片段、各特征对异常的贡献度等，方便人工溯源排查）
+- `status`: `Enum('unhandled', 'handled', 'ignored')` - 告警处理状态（默认 unhandled）
+- `created_at`: `DateTime` - 记录创建时间
