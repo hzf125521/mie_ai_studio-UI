@@ -447,7 +447,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
            )}
          >
-           Model Training
+           模型训练
          </button>
          <button
            onClick={() => setActiveTab('validation')}
@@ -458,7 +458,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
            )}
          >
-           Model Validation
+           模型验证
          </button>
          <button
            onClick={() => setActiveTab('deployment')}
@@ -469,7 +469,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
            )}
          >
-           Model Deployment
+           模型部署
          </button>
        </div>
 
@@ -481,7 +481,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                 onClick={openNewModelModal}
                 className="w-full flex items-center justify-center gap-2 py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
               >
-                <Plus className="w-4 h-4" /> New Model
+                <Plus className="w-4 h-4" /> 新建模型
               </button>
             ) : activeTab === 'validation' ? (
                <button
@@ -489,7 +489,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                 disabled={!displayModel || displayModel.status !== 'completed' || !!displayModel.isValidating}
                 className="w-full flex items-center justify-center gap-2 py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <Play className="w-4 h-4" /> New Validation
+                <Play className="w-4 h-4" /> 新建验证
               </button>
             ) : null}
 
@@ -511,8 +511,8 @@ export const StepModelTrainingValidation: React.FC = () => {
                     {displayModel.status === 'training' ? (
                       <div className="flex flex-col items-center justify-center h-96">
                         <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-                        <h3 className="text-lg font-medium text-gray-900">Training in Progress...</h3>
-                        <p className="text-gray-500">Please wait while the model is being trained.</p>
+                        <h3 className="text-lg font-medium text-gray-900">训练中...</h3>
+                        <p className="text-gray-500">请稍候，模型正在训练。</p>
                       </div>
                     ) : (
                       <>
@@ -520,18 +520,18 @@ export const StepModelTrainingValidation: React.FC = () => {
                         <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
-                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Model Type</span>
+                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">模型类型</span>
                               <p className="mt-1 text-sm font-semibold text-gray-900">{displayModel.type}</p>
                             </div>
                             <div>
-                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Preprocessing</span>
+                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">数据预处理</span>
                               <div className="mt-1 text-xs text-gray-600">
-                                <p>Standardization: {displayModel.preprocessing?.standardization ? 'Yes' : 'No'}</p>
-                                <p>PCA: {displayModel.preprocessing?.pca || 'None'}</p>
+                                <p>标准化: {displayModel.preprocessing?.standardization ? '是' : '否'}</p>
+                                <p>PCA: {displayModel.preprocessing?.pca || '无'}</p>
                               </div>
                             </div>
                             <div className="col-span-2">
-                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Model Parameters</span>
+                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">模型参数</span>
                               <div className="mt-1 text-xs text-gray-600 grid grid-cols-2 gap-x-4">
                                 {Object.entries(displayModel.parameters).map(([key, value]) => (
                                   <span key={key} className="capitalize">{key}: {value}</span>
@@ -541,7 +541,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                           </div>
                           <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">Training Signals</span>
+                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">训练信号</span>
                               <div className="flex flex-wrap gap-2">
                                 {trainingSignals.map(s => (
                                   <div key={s.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded border border-gray-200 text-sm">
@@ -552,7 +552,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                               </div>
                             </div>
                             <div>
-                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">Training Metric</span>
+                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">训练指标</span>
                               <div className="flex gap-4">
                                 {displayModel.workflow === 'regression' ? (
                                   <>
@@ -568,11 +568,11 @@ export const StepModelTrainingValidation: React.FC = () => {
                                 ) : (
                                   <>
                                     <div className="bg-white px-3 py-2 rounded border border-gray-200">
-                                      <span className="text-xs text-gray-500 block">ROC Score</span>
+                                      <span className="text-xs text-gray-500 block">ROC 得分</span>
                                       <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.roc?.toFixed(4) || 'N/A'}</span>
                                     </div>
                                     <div className="bg-white px-3 py-2 rounded border border-gray-200">
-                                      <span className="text-xs text-gray-500 block">Precision</span>
+                                      <span className="text-xs text-gray-500 block">精确率 (Precision)</span>
                                       <span className="text-sm font-bold text-indigo-600">{displayModel.metrics?.precision?.toFixed(4) || 'N/A'}</span>
                                     </div>
                                   </>
@@ -585,7 +585,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                         {displayModel.workflow === 'regression' ? (
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div className="h-72 flex flex-col">
-                              <div className="flex-1"><TrueVsPredChart data={trainingData} targetName={trainingSignals[0]?.targetFeature || 'Target'} /></div>
+                              <div className="flex-1"><TrueVsPredChart data={trainingData} targetName={trainingSignals[0]?.targetFeature || '目标'} /></div>
                             </div>
                             <div className="h-72 flex flex-col">
                               <div className="flex-1"><ResidualDistributionChart data={trainingData} /></div>
@@ -603,7 +603,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                               <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden relative"><ChartContainer data={trainingData} /></div>
                             </div>
                             <div className="h-72 flex flex-col">
-                              <h3 className="text-sm font-medium text-gray-500 mb-2">Anomaly Score</h3>
+                              <h3 className="text-sm font-medium text-gray-500 mb-2">异常得分 (Anomaly Score)</h3>
                               <div className="flex-1"><AnomalyChart data={trainingData} threshold={0.8} /></div>
                             </div>
                           </div>
@@ -618,14 +618,14 @@ export const StepModelTrainingValidation: React.FC = () => {
                     {displayModel.isValidating ? (
                       <div className="flex flex-col items-center justify-center h-64">
                         <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-                        <p className="text-gray-500">Running validation...</p>
+                        <p className="text-gray-500">正在运行验证...</p>
                       </div>
                     ) : displayValidation ? (
                       <>
                         {/* Validation History */}
                         {modelValidations.length > 1 && (
                           <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
-                            <span className="text-xs font-medium text-gray-500 uppercase whitespace-nowrap">History:</span>
+                            <span className="text-xs font-medium text-gray-500 uppercase whitespace-nowrap">历史记录:</span>
                             {modelValidations.map((val, idx) => (
                               <div key={val.id} className="flex items-center" onMouseEnter={() => setHoveredValidationId(val.id)} onMouseLeave={() => setHoveredValidationId(null)}>
                                 {editingValidationId === val.id ? (
@@ -654,7 +654,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                         <div className="bg-blue-50 rounded-lg p-4 border border-blue-100 mb-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                              <span className="text-xs font-medium text-blue-500 uppercase tracking-wider block mb-2">Validation Signals</span>
+                              <span className="text-xs font-medium text-blue-500 uppercase tracking-wider block mb-2">验证信号</span>
                               <div className="flex flex-wrap gap-2">
                                 {validationSignals.map(s => (
                                   <div key={s.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded border border-blue-200 text-sm">
@@ -665,7 +665,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                               </div>
                             </div>
                             <div>
-                              <span className="text-xs font-medium text-blue-500 uppercase tracking-wider block mb-2">Validation Metric</span>
+                              <span className="text-xs font-medium text-blue-500 uppercase tracking-wider block mb-2">验证指标</span>
                               <div className="flex gap-4">
                                 {displayModel.workflow === 'regression' ? (
                                   <>
@@ -681,11 +681,11 @@ export const StepModelTrainingValidation: React.FC = () => {
                                 ) : (
                                   <>
                                     <div className="bg-white px-3 py-2 rounded border border-blue-200">
-                                      <span className="text-xs text-gray-500 block">Validation ROC</span>
+                                      <span className="text-xs text-gray-500 block">验证 ROC</span>
                                       <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.roc?.toFixed(4) || 'N/A'}</span>
                                     </div>
                                     <div className="bg-white px-3 py-2 rounded border border-blue-200">
-                                      <span className="text-xs text-gray-500 block">Validation Precision</span>
+                                      <span className="text-xs text-gray-500 block">验证精确率</span>
                                       <span className="text-sm font-bold text-indigo-600">{displayValidation.metrics?.precision?.toFixed(4) || 'N/A'}</span>
                                     </div>
                                   </>
@@ -699,7 +699,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                         {displayModel.workflow === 'regression' ? (
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div className="h-72 flex flex-col">
-                              <div className="flex-1"><TrueVsPredChart data={validationData} targetName={validationSignals[0]?.targetFeature || 'Target'} /></div>
+                              <div className="flex-1"><TrueVsPredChart data={validationData} targetName={validationSignals[0]?.targetFeature || '目标'} /></div>
                             </div>
                             <div className="h-72 flex flex-col">
                               <div className="flex-1"><ResidualDistributionChart data={validationData} /></div>
@@ -714,7 +714,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                         ) : (
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div className="h-72 flex flex-col">
-                              <h3 className="text-sm font-medium text-gray-500 mb-2">Anomaly Score vs Threshold</h3>
+                              <h3 className="text-sm font-medium text-gray-500 mb-2">异常得分 vs 阈值 (Anomaly Score vs Threshold)</h3>
                               <div className="flex-1"><AnomalyChart data={validationData} threshold={0.8} /></div>
                             </div>
                             <div className="h-72 flex flex-col">
@@ -726,8 +726,8 @@ export const StepModelTrainingValidation: React.FC = () => {
                     ) : (
                        <div className="flex flex-col items-center justify-center h-64 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">
                         <Activity className="w-12 h-12 mb-3 opacity-20" />
-                        <p>No validation run yet.</p>
-                        <p className="text-sm">Click "New Validation" to test this model.</p>
+                        <p>暂无验证记录。</p>
+                        <p className="text-sm">点击 "新建验证" 测试此模型。</p>
                       </div>
                     )}
                   </>
@@ -819,13 +819,13 @@ export const StepModelTrainingValidation: React.FC = () => {
                         </div>
 
                         <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                          {deployedModelId === displayModel.id ? 'Model Deployed' : 'Deploy Model'}
+                          {deployedModelId === displayModel.id ? '模型已部署' : '部署模型'}
                         </h2>
 
                         <p className="text-gray-500 mb-8 max-w-md mx-auto">
                           {deployedModelId === displayModel.id
-                            ? `This model is currently running in production environment. It has been active since ${new Date().toLocaleDateString()}.`
-                            : "Deploy this model to production environment. This will replace the currently active model."
+                            ? `此模型当前正在生产环境中运行。自 ${new Date().toLocaleDateString()} 起激活。`
+                            : "将此模型部署到生产环境。这将替换当前激活的模型。"
                           }
                         </p>
 
@@ -854,7 +854,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                                   : "bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500"
                             )}
                           >
-                            {isDeploying ? 'Deploying...' : deployedModelId === displayModel.id ? 'Cancel Deployment' : 'Deploy to Production'}
+                            {isDeploying ? '部署中...' : deployedModelId === displayModel.id ? '取消部署' : '部署到生产环境'}
                           </button>
 
                           {deployedModelId === displayModel.id && !isDeploying && (
@@ -874,16 +874,16 @@ export const StepModelTrainingValidation: React.FC = () => {
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-gray-400">
                 <Plus className="w-16 h-16 mb-4 opacity-20" />
-                <p className="text-lg">Create a new model to start training.</p>
+                <p className="text-lg">创建一个新模型以开始训练。</p>
               </div>
             )}
           </div>
        </div>
 
       {/* New Model Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Create New Model">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="创建新模型">
         <div className="space-y-6">
-          <Tabs tabs={['Select Signals', 'Data Preprocessing', 'Model Parameters']}>
+          <Tabs tabs={['选择信号', '数据预处理', '模型参数']}>
             <div className="space-y-4">
               <div className="bg-gray-50 p-3 rounded-md border border-gray-200 max-h-60 overflow-y-auto">
                 {signals.length > 0 ? (
@@ -901,22 +901,22 @@ export const StepModelTrainingValidation: React.FC = () => {
                       </label>
                     ))}
                   </div>
-                ) : <p className="text-sm text-gray-500 text-center py-4">No signals available. Please add signals in Step 1.</p>}
+                ) : <p className="text-sm text-gray-500 text-center py-4">无可用信号。请在步骤1中添加信号。</p>}
               </div>
             </div>
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="standardization" checked={preprocessing.standardization} onChange={(e) => setPreprocessing({ ...preprocessing, standardization: e.target.checked })} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
-                <label htmlFor="standardization" className="text-sm font-medium text-gray-700">Enable Standardization</label>
+                <label htmlFor="standardization" className="text-sm font-medium text-gray-700">启用标准化</label>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">PCA Components</label>
-                <input type="number" min="0" value={preprocessing.pca} onChange={(e) => setPreprocessing({ ...preprocessing, pca: parseInt(e.target.value) || 0 })} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Enter number of components (0 for None)" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">PCA 降维维度</label>
+                <input type="number" min="0" value={preprocessing.pca} onChange={(e) => setPreprocessing({ ...preprocessing, pca: parseInt(e.target.value) || 0 })} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="输入组件数量 (0 表示不使用)" />
               </div>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Model Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">模型类型</label>
                 <select value={modelType} onChange={(e) => setModelType(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                   {workflow === 'regression' ? <option value="RandomForestRegressor">RandomForestRegressor</option> : <>
                     <option value="Autoencoder">Autoencoder</option>
@@ -940,16 +940,16 @@ export const StepModelTrainingValidation: React.FC = () => {
             </div>
           </Tabs>
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-            <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
-            <button onClick={handleCreateModel} disabled={selectedSignalIds.length === 0} className="flex items-center gap-2 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">Start Training</button>
+            <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">取消</button>
+            <button onClick={handleCreateModel} disabled={selectedSignalIds.length === 0} className="flex items-center gap-2 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">开始训练</button>
           </div>
         </div>
       </Modal>
 
       {/* Validation Modal */}
-      <Modal isOpen={isValidationModalOpen} onClose={() => setIsValidationModalOpen(false)} title="Run New Validation">
+      <Modal isOpen={isValidationModalOpen} onClose={() => setIsValidationModalOpen(false)} title="运行新验证">
         <div className="space-y-4">
-          <p className="text-sm text-gray-500">Select signals to validate against the model <strong>{displayModel?.name}</strong>.</p>
+          <p className="text-sm text-gray-500">选择要对模型 <strong>{displayModel?.name}</strong> 进行验证的信号。</p>
           <div className="bg-gray-50 p-3 rounded-md border border-gray-200 max-h-60 overflow-y-auto">
             {signals.length > 0 ? (
               <div className="space-y-2">
@@ -963,11 +963,11 @@ export const StepModelTrainingValidation: React.FC = () => {
                   </label>
                 ))}
               </div>
-            ) : <p className="text-sm text-gray-500 text-center py-4">No signals available.</p>}
+            ) : <p className="text-sm text-gray-500 text-center py-4">无可用信号。</p>}
           </div>
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-            <button onClick={() => setIsValidationModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
-            <button onClick={handleRunValidation} disabled={selectedValidationSignalIds.length === 0} className="flex items-center gap-2 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">Run Validation</button>
+            <button onClick={() => setIsValidationModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">取消</button>
+            <button onClick={handleRunValidation} disabled={selectedValidationSignalIds.length === 0} className="flex items-center gap-2 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">运行验证</button>
           </div>
         </div>
       </Modal>

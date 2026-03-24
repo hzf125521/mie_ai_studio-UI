@@ -26,9 +26,9 @@ export const WorkflowSelection: React.FC = () => {
           <div className="h-20 w-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6 group-hover:bg-indigo-600 transition-colors">
             <Activity className="h-10 w-10 text-indigo-600 group-hover:text-white transition-colors" />
           </div>
-          <h2 className="text-2xl font-semibold text-gray-800 mb-3">Outliers Detection</h2>
+          <h2 className="text-2xl font-semibold text-gray-800 mb-3">异常检测</h2>
           <p className="text-gray-500 text-center">
-            Detect anomalies and outliers in your time-series data using unsupervised learning models like Autoencoder, Isolation Forest, etc.
+            使用 Autoencoder、Isolation Forest 等无监督学习模型，检测时间序列数据中的异常和离群点。
           </p>
         </div>
 
@@ -40,9 +40,9 @@ export const WorkflowSelection: React.FC = () => {
           <div className="h-20 w-20 bg-emerald-100 rounded-full flex items-center justify-center mb-6 group-hover:bg-emerald-600 transition-colors">
             <TrendingUp className="h-10 w-10 text-emerald-600 group-hover:text-white transition-colors" />
           </div>
-          <h2 className="text-2xl font-semibold text-gray-800 mb-3">Regression Residual</h2>
+          <h2 className="text-2xl font-semibold text-gray-800 mb-3">回归残差</h2>
           <p className="text-gray-500 text-center">
-            Monitor residuals based on regression models (e.g., RandomForestRegressor). Set alarms based on prediction errors and thresholds.
+            基于回归模型（例如 RandomForestRegressor）监控残差。通过预测误差和阈值来设定报警。
           </p>
         </div>
       </div>

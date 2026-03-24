@@ -49,7 +49,7 @@ const MultiSelect: React.FC<{
         className="w-full bg-white border border-gray-300 rounded-md py-1.5 px-3 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-xs flex justify-between items-center"
       >
         <span className="block truncate">
-          {selected.length === 0 ? 'Select features...' : `${selected.length} selected`}
+          {selected.length === 0 ? '选择特征...' : `已选择 ${selected.length} 个`}
         </span>
         <ChevronDown className="h-4 w-4 text-gray-400" />
       </button>
@@ -150,17 +150,17 @@ export const Step1: React.FC = () => {
     );
 
     if (flatFeatures.length === 0) {
-      alert('Please select at least one feature.');
+      alert('请至少选择一个特征。');
       return null;
     }
 
     if (workflow === 'regression' && !selectedTarget) {
-      alert('Please select a target feature (y).');
+      alert('请选择目标特征 (y)。');
       return null;
     }
 
     if (workflow === 'regression' && flatFeatures.includes(selectedTarget)) {
-      alert('Target feature cannot be one of the input features.');
+      alert('目标特征不能是输入特征之一。');
       return null;
     }
 
@@ -235,7 +235,7 @@ export const Step1: React.FC = () => {
       setSelectedSignalIds(selectedSignalIds.filter(sid => sid !== id));
     } else {
       if (selectedSignalIds.length >= 5) {
-        alert('You can select up to 5 signals.');
+        alert('最多只能选择 5 个信号。');
         return;
       }
       setSelectedSignalIds([...selectedSignalIds, id]);
@@ -259,7 +259,7 @@ export const Step1: React.FC = () => {
 
   const saveEditing = (id: string) => {
     if (signals.some(s => s.name === editName && s.id !== id)) {
-      alert('Signal name already exists.');
+      alert('信号名称已存在。');
       return;
     }
     updateSignal(id, { name: editName });
@@ -297,7 +297,7 @@ export const Step1: React.FC = () => {
       validations?.some(v => v.signalIds?.includes(id));
 
     if (isUsed) {
-      alert('This signal is currently used in a model or validation and cannot be deleted.');
+      alert('此信号当前被模型或验证任务使用，无法删除。');
       return;
     }
 
@@ -310,7 +310,7 @@ export const Step1: React.FC = () => {
       <div className="w-96 flex-shrink-0 bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col gap-6">
         <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-indigo-600" /> Add Signals
+            <Plus className="w-5 h-5 text-indigo-600" /> 添加信号
           </h2>
           <div className="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
             {MEASUREMENT_POINTS.map(point => {
@@ -321,7 +321,7 @@ export const Step1: React.FC = () => {
               return (
                 <MultiSelect
                   key={point.id}
-                  label={workflow === 'regression' ? `${point.name} (Input X)` : point.name}
+                  label={workflow === 'regression' ? `${point.name} (输入 X)` : point.name}
                   options={availableFeatures}
                   selected={selectedFeatures[point.id] || []}
                   onChange={(features) => handleFeatureChange(point.id, features)}
@@ -331,13 +331,13 @@ export const Step1: React.FC = () => {
 
             {workflow === 'regression' && (
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Target Feature (y)</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">目标特征 (y)</label>
                 <select
                   value={selectedTarget}
                   onChange={(e) => { setSelectedTarget(e.target.value); setPreviewSignal(null); }}
                   className="w-full bg-white border border-gray-300 rounded-md py-1.5 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
                 >
-                  <option value="">Select target...</option>
+                  <option value="">选择目标...</option>
                   {allFeatures.map(f => {
                     const [pId, fName] = f.split('_');
                     const isSelected = selectedFeatures[pId]?.includes(fName);
@@ -353,7 +353,7 @@ export const Step1: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Start Time</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">开始时间</label>
                 <input
                   type="datetime-local"
                   value={startTime}
@@ -362,7 +362,7 @@ export const Step1: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">End Time</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">结束时间</label>
                 <input
                   type="datetime-local"
                   value={endTime}
@@ -390,7 +390,7 @@ export const Step1: React.FC = () => {
 
         <div className="border-t border-gray-200 pt-4 flex-1 flex flex-col min-h-0">
           <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-gray-500" /> Regular Signals
+            <Activity className="w-4 h-4 text-gray-500" /> 常规信号
           </h3>
 
           {/* Filters */}
@@ -398,7 +398,7 @@ export const Step1: React.FC = () => {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search by name..."
+                placeholder="按名称搜索..."
                 value={filterName}
                 onChange={(e) => setFilterName(e.target.value)}
                 className="w-full pl-8 pr-2 py-1 border border-gray-300 rounded-md text-xs"
@@ -469,14 +469,14 @@ export const Step1: React.FC = () => {
                       'p-1 text-gray-400 hover:text-red-500 transition-opacity duration-200 rounded hover:bg-gray-100',
                       hoveredSignalId === signal.id ? 'opacity-100' : 'opacity-0 pointer-events-none'
                     )}
-                    title="Remove Signal"
+                    title="删除信号"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </li>
               ))}
               {filteredSignals.length === 0 && (
-                <li className="text-sm text-gray-400 text-center py-4 italic">No signals found.</li>
+                <li className="text-sm text-gray-400 text-center py-4 italic">未找到信号。</li>
               )}
             </ul>
           </div>
@@ -498,7 +498,7 @@ export const Step1: React.FC = () => {
                 <SignalInfoTooltip signal={signal} />
               </div>
               <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-600">
-                Created: {new Date(signal.createdAt).toLocaleString()}
+                创建时间: {new Date(signal.createdAt).toLocaleString()}
               </span>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -508,7 +508,7 @@ export const Step1: React.FC = () => {
                     data={signal.data}
                     features={signal.features}
                     targetFeature={signal.targetFeature}
-                    title={workflow === 'regression' ? 'Device Status Features VS Target Feature' : undefined}
+                    title={workflow === 'regression' ? '设备状态特征 VS 目标特征' : undefined}
                   />
                 </div>
               </div>
@@ -526,8 +526,8 @@ export const Step1: React.FC = () => {
         {displaySignals.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-gray-400">
             <Activity className="w-16 h-16 mb-4 opacity-20" />
-            <p className="text-lg">No signals to display.</p>
-            <p className="text-sm">Select signals from the left or add new ones.</p>
+            <p className="text-lg">没有要显示的信号。</p>
+            <p className="text-sm">请从左侧选择信号或添加新信号。</p>
           </div>
         )}
       </div>

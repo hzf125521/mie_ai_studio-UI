@@ -4,9 +4,9 @@ import { cn } from '../lib/utils';
 import { CheckCircle, Circle } from 'lucide-react';
 
 const steps = [
-  { id: 0, title: 'Step 1: Workflow' },
-  { id: 1, title: 'Step 2: Signal Preparation' },
-  { id: 2, title: 'Step 3: Model Management' },
+  { id: 0, title: '步骤 1: 任务类型' },
+  { id: 1, title: '步骤 2: 信号准备' },
+  { id: 2, title: '步骤 3: 模型管理' },
 ];
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
