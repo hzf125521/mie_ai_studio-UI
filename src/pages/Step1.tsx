@@ -1,13 +1,12 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { TimeSeriesChart } from '../components/charts/TimeSeriesChart';
 import { PCAChart } from '../components/charts/PCAChart';
-import { ThreeDScatterChart } from '../components/charts/ThreeDScatterChart';
+import { FeatureCorrelationHeatmap } from '../components/charts/FeatureCorrelationHeatmap';
 import { Plus, Trash2, Calendar, Activity, Edit2, Check, X, Search, ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { SignalInfoTooltip } from '../components/SignalInfoTooltip';
 
-// Mock measurement points and features
 const MEASUREMENT_POINTS = [
   { id: 'PointA', name: 'Measurement Point A', features: ['Temp', 'Pressure', 'Vibration'] },
   { id: 'PointB', name: 'Measurement Point B', features: ['Speed', 'Current', 'Voltage'] },
@@ -46,16 +45,16 @@ const MultiSelect: React.FC<{
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-white border border-gray-300 rounded-md py-1.5 px-3 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-xs flex justify-between items-center"
+        className="w-full bg-white border border-gray-300 rounded-md py-1.5 px-3 text-left focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-xs flex justify-between items-center"
       >
         <span className="block truncate">
-          {selected.length === 0 ? '选择特征...' : `已选择 ${selected.length} 个`}
+          {selected.length === 0 ? 'Select features...' : `Selected ${selected.length}`}
         </span>
         <ChevronDown className="h-4 w-4 text-gray-400" />
       </button>
 
       {isOpen && (
-        <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+        <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 ring-1 ring-black ring-opacity-5 overflow-auto">
           {options.map((option) => (
             <div
               key={option}
@@ -69,9 +68,7 @@ const MultiSelect: React.FC<{
                   checked={selected.includes(option)}
                   readOnly
                 />
-                <span className="block truncate font-normal text-xs">
-                  {option}
-                </span>
+                <span className="block truncate font-normal text-xs">{option}</span>
               </div>
             </div>
           ))}
@@ -84,52 +81,64 @@ const MultiSelect: React.FC<{
 export const Step1: React.FC = () => {
   const { signals, addSignal, updateSignal, removeSignal, workflow, models, validations } = useApp();
   const [selectedSignalIds, setSelectedSignalIds] = useState<string[]>([]);
-
-  // New Signal State
   const [startTime, setStartTime] = useState('2023-01-01T00:00');
   const [endTime, setEndTime] = useState('2023-01-02T00:00');
   const [selectedFeatures, setSelectedFeatures] = useState<Record<string, string[]>>({});
-  // Target Selection for Regression
-  const [selectedTarget, setSelectedTarget] = useState<string>('');
-  
-  // Preview Signal State
+  const [selectedTarget, setSelectedTarget] = useState('');
   const [previewSignal, setPreviewSignal] = useState<any | null>(null);
-
-  // Filter State
   const [filterName, setFilterName] = useState('');
   const [filterDate, setFilterDate] = useState('');
-
-  // Editing State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [hoveredSignalId, setHoveredSignalId] = useState<string | null>(null);
 
-  // Clean up selected features when target changes
   useEffect(() => {
     setPreviewSignal(null);
-    if (selectedTarget) {
-      const parts = selectedTarget.split('_');
-      if (parts.length === 2) {
-        const [tPId, tFName] = parts;
-        if (selectedFeatures[tPId]?.includes(tFName)) {
-          setSelectedFeatures(prev => ({
-            ...prev,
-            [tPId]: prev[tPId].filter(f => f !== tFName)
-          }));
-        }
+    if (!selectedTarget) return;
+    const parts = selectedTarget.split('_');
+    if (parts.length !== 2) return;
+    const [pointId, featureName] = parts;
+    if (!selectedFeatures[pointId]?.includes(featureName)) return;
+    setSelectedFeatures(prev => ({
+      ...prev,
+      [pointId]: prev[pointId].filter(f => f !== featureName),
+    }));
+  }, [selectedTarget, selectedFeatures]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (editingId && !(event.target as HTMLElement).closest('.editing-container')) {
+        setEditingId(null);
       }
-    }
-  }, [selectedTarget]);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [editingId]);
 
   const allFeatures = useMemo(() => {
-    return MEASUREMENT_POINTS.flatMap(point =>
-      point.features.map(f => `${point.id}_${f}`)
-    );
+    return MEASUREMENT_POINTS.flatMap(point => point.features.map(f => `${point.id}_${f}`));
   }, []);
+
+  const filteredSignals = useMemo(() => {
+    return signals.filter(s => {
+      const matchName = s.name.toLowerCase().includes(filterName.toLowerCase());
+      const matchDate = filterDate ? s.createdAt.startsWith(filterDate) : true;
+      return matchName && matchDate;
+    });
+  }, [signals, filterName, filterDate]);
+
+  const displaySignal = useMemo(() => {
+    if (previewSignal) return previewSignal;
+    if (selectedSignalIds.length > 0) {
+      const latestSelectedId = selectedSignalIds[selectedSignalIds.length - 1];
+      return signals.find(s => s.id === latestSelectedId) || null;
+    }
+    return [...signals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
+  }, [previewSignal, selectedSignalIds, signals]);
 
   const handleFeatureChange = (pointId: string, features: string[]) => {
     setSelectedFeatures(prev => ({ ...prev, [pointId]: features }));
-    setPreviewSignal(null); // Clear preview when form changes
+    setPreviewSignal(null);
   };
 
   const generateSignalData = () => {
@@ -137,9 +146,8 @@ export const Step1: React.FC = () => {
     const timeString = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
     let name = `Signal_${timeString}`;
 
-    // Check for duplicate name and append suffix if needed
     let counter = 1;
-    let originalName = name;
+    const originalName = name;
     while (signals.some(s => s.name === name)) {
       name = `${originalName}_${counter}`;
       counter++;
@@ -150,33 +158,32 @@ export const Step1: React.FC = () => {
     );
 
     if (flatFeatures.length === 0) {
-      alert('请至少选择一个特征。');
+      alert('Please select at least one feature.');
       return null;
     }
 
     if (workflow === 'regression' && !selectedTarget) {
-      alert('请选择目标特征 (y)。');
+      alert('Please select a target feature.');
       return null;
     }
 
     if (workflow === 'regression' && flatFeatures.includes(selectedTarget)) {
-      alert('目标特征不能是输入特征之一。');
+      alert('Target feature cannot be included in input features.');
       return null;
     }
 
     const id = `sig-preview-${Date.now()}`;
-    // Generate data
     const mockData = Array.from({ length: 50 }, (_, i) => {
-      const point: any = { time: i };
-      // Generate X data
+      const point: Record<string, any> = { time: i };
       flatFeatures.forEach((feature, idx) => {
         point[feature] = Math.sin(i * 0.2 + idx) + Math.random() * 0.2;
       });
-      // Generate y data if regression
+
       if (workflow === 'regression' && selectedTarget) {
-        // Mock relationship: y = sum(x) + noise
         let sumX = 0;
-        flatFeatures.forEach(f => sumX += point[f]);
+        flatFeatures.forEach(f => {
+          sumX += Number(point[f] || 0);
+        });
         point[selectedTarget] = sumX * 0.5 + Math.random() * 0.5;
       }
 
@@ -196,50 +203,39 @@ export const Step1: React.FC = () => {
       features: flatFeatures,
       targetFeature: workflow === 'regression' ? selectedTarget : undefined,
       data: mockData,
-      isPreview: true, // Mark as preview
+      isPreview: true,
     };
   };
 
   const handlePreviewSignal = () => {
     const newSignal = generateSignalData();
-    if (newSignal) {
-      setPreviewSignal(newSignal);
-    }
+    if (newSignal) setPreviewSignal(newSignal);
   };
 
   const handleAddSignal = () => {
     let signalToAdd = previewSignal;
-    
-    // If no preview, or form changed, generate new
-    if (!signalToAdd) {
-      signalToAdd = generateSignalData();
-    }
+    if (!signalToAdd) signalToAdd = generateSignalData();
+    if (!signalToAdd) return;
 
-    if (signalToAdd) {
-      const finalSignal = {
-        ...signalToAdd,
-        id: `sig-${Date.now()}`,
-        isPreview: false,
-      };
-      addSignal(finalSignal);
-      setPreviewSignal(null);
-      
-      // Optionally reset form
-      // setSelectedFeatures({});
-      // setSelectedTarget('');
-    }
+    const finalSignal = {
+      ...signalToAdd,
+      id: `sig-${Date.now()}`,
+      isPreview: false,
+    };
+    addSignal(finalSignal);
+    setPreviewSignal(null);
   };
 
   const toggleSignalSelection = (id: string) => {
     if (selectedSignalIds.includes(id)) {
       setSelectedSignalIds(selectedSignalIds.filter(sid => sid !== id));
-    } else {
-      if (selectedSignalIds.length >= 5) {
-        alert('最多只能选择 5 个信号。');
-        return;
-      }
-      setSelectedSignalIds([...selectedSignalIds, id]);
+      return;
     }
+    if (selectedSignalIds.length >= 5) {
+      alert('At most 5 signals can be selected.');
+      return;
+    }
+    setSelectedSignalIds([...selectedSignalIds, id]);
   };
 
   const startEditing = (signal: any) => {
@@ -247,81 +243,44 @@ export const Step1: React.FC = () => {
     setEditName(signal.name);
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (editingId && !(event.target as HTMLElement).closest('.editing-container')) {
-        setEditingId(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [editingId]);
-
   const saveEditing = (id: string) => {
     if (signals.some(s => s.name === editName && s.id !== id)) {
-      alert('信号名称已存在。');
+      alert('Signal name already exists.');
       return;
     }
     updateSignal(id, { name: editName });
     setEditingId(null);
   };
 
-  const filteredSignals = signals.filter(s => {
-    const matchName = s.name.toLowerCase().includes(filterName.toLowerCase());
-    const matchDate = filterDate ? s.createdAt.startsWith(filterDate) : true;
-    return matchName && matchDate;
-  });
-
-  // Determine which signals to show in right panel
-  const displaySignals = useMemo(() => {
-    let signalsToShow = [];
-    if (previewSignal) {
-      signalsToShow.push(previewSignal);
-    }
-
-    if (selectedSignalIds.length > 0) {
-      // Show selected signals
-      signalsToShow = [...signalsToShow, ...signals.filter(s => selectedSignalIds.includes(s.id))];
-    } else {
-      // Show 3 newest signals
-      signalsToShow = [...signalsToShow, ...[...signals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 3)];
-    }
-    return signalsToShow;
-  }, [previewSignal, selectedSignalIds, signals]);
-
   const handleRemoveSignal = (id: string) => {
-    // Check if signal is used in any model or validation
-    // Note: This requires access to models and validations which are in AppContext
-    // We'll need to fetch them.
-    const isUsed = models?.some(m => m.trainSignalIds?.includes(id)) ||
+    const isUsed =
+      models?.some(m => m.trainSignalIds?.includes(id)) ||
       validations?.some(v => v.signalIds?.includes(id));
-
     if (isUsed) {
-      alert('此信号当前被模型或验证任务使用，无法删除。');
+      alert('This signal is currently used by model training/validation and cannot be removed.');
       return;
     }
-
     removeSignal(id);
   };
 
   return (
     <div className="flex h-full gap-6">
-      {/* Left Sidebar */}
       <div className="w-96 flex-shrink-0 bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col gap-6">
         <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-indigo-600" /> 添加信号
+            <Plus className="w-5 h-5 text-indigo-600" /> Add Signal
           </h2>
           <div className="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
             {MEASUREMENT_POINTS.map(point => {
-              const availableFeatures = workflow === 'regression' && selectedTarget
-                ? point.features.filter(f => `${point.id}_${f}` !== selectedTarget)
-                : point.features;
+              const availableFeatures =
+                workflow === 'regression' && selectedTarget
+                  ? point.features.filter(f => `${point.id}_${f}` !== selectedTarget)
+                  : point.features;
 
               return (
                 <MultiSelect
                   key={point.id}
-                  label={workflow === 'regression' ? `${point.name} (输入 X)` : point.name}
+                  label={workflow === 'regression' ? `${point.name} (Input X)` : point.name}
                   options={availableFeatures}
                   selected={selectedFeatures[point.id] || []}
                   onChange={(features) => handleFeatureChange(point.id, features)}
@@ -331,16 +290,19 @@ export const Step1: React.FC = () => {
 
             {workflow === 'regression' && (
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">目标特征 (y)</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Target Feature (y)</label>
                 <select
                   value={selectedTarget}
-                  onChange={(e) => { setSelectedTarget(e.target.value); setPreviewSignal(null); }}
+                  onChange={(e) => {
+                    setSelectedTarget(e.target.value);
+                    setPreviewSignal(null);
+                  }}
                   className="w-full bg-white border border-gray-300 rounded-md py-1.5 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
                 >
-                  <option value="">选择目标...</option>
+                  <option value="">Select target...</option>
                   {allFeatures.map(f => {
-                    const [pId, fName] = f.split('_');
-                    const isSelected = selectedFeatures[pId]?.includes(fName);
+                    const [pointId, featureName] = f.split('_');
+                    const isSelected = selectedFeatures[pointId]?.includes(featureName);
                     return (
                       <option key={f} value={f} disabled={isSelected}>
                         {f}
@@ -353,52 +315,58 @@ export const Step1: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">开始时间</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Start Time</label>
                 <input
                   type="datetime-local"
                   value={startTime}
-                  onChange={(e) => { setStartTime(e.target.value); setPreviewSignal(null); }}
+                  onChange={(e) => {
+                    setStartTime(e.target.value);
+                    setPreviewSignal(null);
+                  }}
                   className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">结束时间</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">End Time</label>
                 <input
                   type="datetime-local"
                   value={endTime}
-                  onChange={(e) => { setEndTime(e.target.value); setPreviewSignal(null); }}
+                  onChange={(e) => {
+                    setEndTime(e.target.value);
+                    setPreviewSignal(null);
+                  }}
                   className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs"
                 />
               </div>
             </div>
-          <div className="grid grid-cols-2 gap-2 mt-4">
-            <button
-              onClick={handlePreviewSignal}
-              className="w-full flex justify-center py-2 px-4 border border-indigo-600 rounded-md shadow-sm text-sm font-medium text-indigo-600 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              信号筛选预览
-            </button>
-            <button
-              onClick={handleAddSignal}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              添加信号样本
-            </button>
-          </div>
+
+            <div className="grid grid-cols-2 gap-2 mt-4">
+              <button
+                onClick={handlePreviewSignal}
+                className="w-full flex justify-center py-2 px-4 border border-indigo-600 rounded-md shadow-sm text-sm font-medium text-indigo-600 bg-white hover:bg-indigo-50"
+              >
+                Preview
+              </button>
+              <button
+                onClick={handleAddSignal}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+              >
+                Add Signal
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="border-t border-gray-200 pt-4 flex-1 flex flex-col min-h-0">
           <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-gray-500" /> 常规信号
+            <Activity className="w-4 h-4 text-gray-500" /> Signals
           </h3>
 
-          {/* Filters */}
           <div className="mb-3 space-y-2">
             <div className="relative">
               <input
                 type="text"
-                placeholder="按名称搜索..."
+                placeholder="Search by name..."
                 value={filterName}
                 onChange={(e) => setFilterName(e.target.value)}
                 className="w-full pl-8 pr-2 py-1 border border-gray-300 rounded-md text-xs"
@@ -419,10 +387,10 @@ export const Step1: React.FC = () => {
                 <li
                   key={signal.id}
                   className={cn(
-                    "group flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer",
+                    'group flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer',
                     selectedSignalIds.includes(signal.id)
-                      ? "bg-indigo-50 border-indigo-300 ring-1 ring-indigo-300"
-                      : "bg-white border-gray-200 hover:border-indigo-200 hover:bg-gray-50"
+                      ? 'bg-indigo-50 border-indigo-300 ring-1 ring-indigo-300'
+                      : 'bg-white border-gray-200 hover:border-indigo-200 hover:bg-gray-50'
                   )}
                   onMouseEnter={() => setHoveredSignalId(signal.id)}
                   onMouseLeave={() => setHoveredSignalId(null)}
@@ -442,14 +410,23 @@ export const Step1: React.FC = () => {
                             if (e.key === 'Escape') setEditingId(null);
                           }}
                         />
-                        <button onClick={() => saveEditing(signal.id)} className="text-green-600"><Check className="w-3 h-3" /></button>
-                        <button onClick={() => setEditingId(null)} className="text-red-500"><X className="w-3 h-3" /></button>
+                        <button onClick={() => saveEditing(signal.id)} className="text-green-600">
+                          <Check className="w-3 h-3" />
+                        </button>
+                        <button onClick={() => setEditingId(null)} className="text-red-500">
+                          <X className="w-3 h-3" />
+                        </button>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 h-5">
-                        <span className="text-sm font-medium text-gray-900 truncate" title={signal.name}>{signal.name}</span>
+                        <span className="text-sm font-medium text-gray-900 truncate" title={signal.name}>
+                          {signal.name}
+                        </span>
                         <button
-                          onClick={(e) => { e.stopPropagation(); startEditing(signal); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEditing(signal);
+                          }}
                           className={cn(
                             'text-gray-400 hover:text-indigo-600 transition-opacity duration-200 p-1 rounded hover:bg-gray-100',
                             hoveredSignalId === signal.id ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -460,109 +437,95 @@ export const Step1: React.FC = () => {
                       </div>
                     )}
                     <span className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                      <Calendar className="w-3 h-3" /> {new Date(signal.createdAt).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })}
+                      <Calendar className="w-3 h-3" />{' '}
+                      {new Date(signal.createdAt).toLocaleString(undefined, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false,
+                      })}
                     </span>
                   </div>
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleRemoveSignal(signal.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveSignal(signal.id);
+                    }}
                     className={cn(
                       'p-1 text-gray-400 hover:text-red-500 transition-opacity duration-200 rounded hover:bg-gray-100',
                       hoveredSignalId === signal.id ? 'opacity-100' : 'opacity-0 pointer-events-none'
                     )}
-                    title="删除信号"
+                    title="Delete signal"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </li>
               ))}
               {filteredSignals.length === 0 && (
-                <li className="text-sm text-gray-400 text-center py-4 italic">未找到信号。</li>
+                <li className="text-sm text-gray-400 text-center py-4 italic">No signal found.</li>
               )}
             </ul>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 overflow-y-auto space-y-6 pr-2">
-        {displaySignals.map((signal) => (
-          <div key={signal.id} className={cn("bg-white rounded-xl shadow-sm border p-6 transition-all hover:shadow-md", signal.isPreview ? "border-indigo-300 ring-1 ring-indigo-100" : "border-gray-200")}>
+        {displaySignal ? (
+          <div
+            key={displaySignal.id}
+            className={cn(
+              'bg-white rounded-xl shadow-sm border p-6 transition-all hover:shadow-md',
+              displaySignal.isPreview ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-gray-200'
+            )}
+          >
             <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold text-gray-900">{signal.name}</h3>
-                {signal.isPreview && (
+                <h3 className="text-lg font-semibold text-gray-900">{displaySignal.name}</h3>
+                {displaySignal.isPreview && (
                   <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-0.5 rounded-full font-medium border border-indigo-200">
-                    预览
+                    Preview
                   </span>
                 )}
-                <SignalInfoTooltip signal={signal} />
+                <SignalInfoTooltip signal={displaySignal} />
               </div>
               <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-600">
-                创建时间: {new Date(signal.createdAt).toLocaleString()}
+                Created: {new Date(displaySignal.createdAt).toLocaleString()}
               </span>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="h-72 flex flex-col">
+
+            <div className="space-y-6">
+              <div className="h-80 flex flex-col">
                 <div className="flex-1">
                   <TimeSeriesChart
-                    data={signal.data}
-                    features={signal.features}
-                    targetFeature={signal.targetFeature}
-                    title={workflow === 'regression' ? '设备状态特征 VS 目标特征' : undefined}
+                    data={displaySignal.data}
+                    features={displaySignal.features}
+                    targetFeature={displaySignal.targetFeature}
+                    title={workflow === 'regression' ? 'Input Features VS Target Feature' : undefined}
                   />
                 </div>
               </div>
-              <div className="h-72 flex flex-col">
-                <div className="flex justify-between items-center mb-2 px-2">
 
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="h-72 flex flex-col">
+                  <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden">
+                    <PCAChart data={displaySignal.data.map((d: any) => ({ ...d, type: 'Data' }))} />
+                  </div>
                 </div>
-                <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden relative">
-                  <ChartContainer data={signal.data} />
+                <div className="h-72 flex flex-col">
+                  <div className="flex-1">
+                    <FeatureCorrelationHeatmap data={displaySignal.data} features={displaySignal.features} />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        ))}
-        {displaySignals.length === 0 && (
+        ) : (
           <div className="flex flex-col items-center justify-center h-full text-gray-400">
             <Activity className="w-16 h-16 mb-4 opacity-20" />
-            <p className="text-lg">没有要显示的信号。</p>
-            <p className="text-sm">请从左侧选择信号或添加新信号。</p>
+            <p className="text-lg">No signal to display.</p>
+            <p className="text-sm">Please select a signal on the left or create a new one.</p>
           </div>
         )}
       </div>
     </div>
   );
 };
-
-const ChartContainer: React.FC<{ data: any[] }> = ({ data }) => {
-  const [is3D, setIs3D] = useState(false);
-
-  // Unify data type for Step 1 to avoid Normal/Anomaly distinction
-  const unifiedData = useMemo(() => data.map(d => ({ ...d, type: 'Data' })), [data]);
-
-  return (
-    <>
-      <div className="absolute top-2 right-2 z-10 flex space-x-2 text-xs bg-white/80 p-1 rounded shadow-sm">
-        <button
-          onClick={() => setIs3D(false)}
-          className={`px-2 py-1 rounded ${!is3D ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}
-        >
-          2D
-        </button>
-        <button
-          onClick={() => setIs3D(true)}
-          className={`px-2 py-1 rounded ${is3D ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}
-        >
-          3D
-        </button>
-      </div>
-      {is3D ? (
-        <ThreeDScatterChart data={unifiedData} />
-      ) : (
-        <PCAChart data={unifiedData} />
-      )}
-    </>
-  );
-};
-
