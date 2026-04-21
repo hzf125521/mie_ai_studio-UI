@@ -175,8 +175,12 @@ export const Step1: React.FC = () => {
     const id = `sig-preview-${Date.now()}`;
     const mockData = Array.from({ length: 50 }, (_, i) => {
       const point: Record<string, any> = { time: i };
+      const scales = [1, 100, 1000];
       flatFeatures.forEach((feature, idx) => {
-        point[feature] = Math.sin(i * 0.2 + idx) + Math.random() * 0.2;
+        const scale = scales[idx % scales.length];
+        const base = (Math.sin(i * 0.2 + idx) + 1) / 2; // ~0..1
+        const noise = Math.random() * 0.1;
+        point[feature] = (base + noise) * scale;
       });
 
       if (workflow === 'regression' && selectedTarget) {
@@ -184,7 +188,7 @@ export const Step1: React.FC = () => {
         flatFeatures.forEach(f => {
           sumX += Number(point[f] || 0);
         });
-        point[selectedTarget] = sumX * 0.5 + Math.random() * 0.5;
+        point[selectedTarget] = sumX / Math.max(flatFeatures.length, 1) + Math.random() * 5;
       }
 
       point.x = Math.random() * 10;
