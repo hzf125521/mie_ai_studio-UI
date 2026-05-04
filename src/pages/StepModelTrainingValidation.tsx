@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Modal } from '../components/ui/Modal';
-import { Tabs } from '../components/ui/Tabs';
-import { Plus, Play, CheckCircle, Activity, Edit2, Trash2, Check, X, Rocket, Eye, ArrowLeft } from 'lucide-react';
+import { Plus, Play, CheckCircle, Activity, Edit2, Trash2, Check, X, Rocket, Eye, ArrowLeft, ChevronDown, Settings2, SlidersHorizontal, Radio } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { PCAChart } from '../components/charts/PCAChart';
 import { AnomalyChart } from '../components/charts/AnomalyChart';
@@ -82,6 +81,7 @@ export const StepModelTrainingValidation: React.FC = () => {
   const [modelType, setModelType] = useState(workflow === 'regression' ? 'RandomForestRegressor' : 'Autoencoder');
   const [preprocessing, setPreprocessing] = useState({ standardization: true, pca: 0 });
   const [parameters, setParameters] = useState<Record<string, any>>({});
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
 
   // ==================== VALIDATION STATE ====================
@@ -132,6 +132,7 @@ export const StepModelTrainingValidation: React.FC = () => {
     setSelectedSignalIds([]);
     setModelType(workflow === 'regression' ? 'RandomForestRegressor' : 'Autoencoder');
     setPreprocessing({ standardization: true, pca: 0 });
+    setIsAdvancedOpen(false);
   };
 
   const openNewModelModal = () => {
@@ -881,71 +882,102 @@ export const StepModelTrainingValidation: React.FC = () => {
        </div>
 
       {/* New Model Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="创建新模型">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="创建新模型" hideTitle>
         <div className="space-y-6">
-          <Tabs tabs={['选择信号', '数据预处理', '模型参数']}>
-            <div className="space-y-4">
-              <div className="bg-gray-50 p-3 rounded-md border border-gray-200 max-h-60 overflow-y-auto">
-                {signals.length > 0 ? (
-                  <div className="space-y-2">
-                    {signals.map((signal) => (
-                      <label key={signal.id} className="flex items-center justify-between p-2 bg-white rounded border border-gray-100 cursor-pointer hover:bg-indigo-50">
-                        <div className="flex items-center gap-3">
-                          <input type="checkbox" className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" checked={selectedSignalIds.includes(signal.id)} onChange={() => handleSignalToggle(signal.id)} />
-                          <div>
-                            <span className="text-sm font-medium text-gray-900 block">{new Date(signal.createdAt).toLocaleString()}</span>
-                            <span className="text-xs text-gray-500">{signal.name}</span>
-                          </div>
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <Radio className="w-4 h-4 text-indigo-600" />
+                选择训练信号
+              </h4>
+              <span className={cn('text-xs px-2 py-1 rounded-full transition-colors', selectedSignalIds.length > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500')}>
+                已选 {selectedSignalIds.length} 个
+              </span>
+            </div>
+            <div className="bg-gray-50 p-3 rounded-md border border-gray-200 max-h-64 overflow-y-auto">
+              {signals.length > 0 ? (
+                <div className="space-y-2">
+                  {signals.map((signal) => (
+                    <label key={signal.id} className={cn('flex items-center justify-between p-3 bg-white rounded-lg border cursor-pointer transition-all duration-200', selectedSignalIds.includes(signal.id) ? 'border-indigo-300 ring-2 ring-indigo-100 shadow-sm' : 'border-gray-100 hover:bg-indigo-50 hover:border-indigo-200')}>
+                      <div className="flex items-center gap-3">
+                        <input type="checkbox" className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" checked={selectedSignalIds.includes(signal.id)} onChange={() => handleSignalToggle(signal.id)} />
+                        <div>
+                          <span className="text-sm font-medium text-gray-900 block">{new Date(signal.createdAt).toLocaleString()}</span>
+                          <span className="text-xs text-gray-500">{signal.name}</span>
                         </div>
-                        <SignalInfoTooltip signal={signal} />
-                      </label>
-                    ))}
-                  </div>
-                ) : <p className="text-sm text-gray-500 text-center py-4">无可用信号。请在步骤1中添加信号。</p>}
+                      </div>
+                      <SignalInfoTooltip signal={signal} />
+                    </label>
+                  ))}
+                </div>
+              ) : <p className="text-sm text-gray-500 text-center py-4">无可用信号。请先在步骤1中添加信号。</p>}
+            </div>
+          </section>
+
+          <section className="border border-gray-200 rounded-xl overflow-hidden">
+            <button type="button" onClick={() => setIsAdvancedOpen(prev => !prev)} className="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-gray-50 transition-colors">
+              <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <Settings2 className="w-4 h-4 text-indigo-600" />
+                高级选项
+              </h4>
+              <ChevronDown className={cn('w-4 h-4 text-gray-500 transition-transform duration-300', isAdvancedOpen && 'rotate-180')} />
+            </button>
+            <div className={cn('grid transition-all duration-300 ease-in-out', isAdvancedOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0')}>
+              <div className="overflow-hidden">
+                <div className="p-4 bg-gray-50 border-t border-gray-100 space-y-5">
+                  <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+                    <h5 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                      <SlidersHorizontal className="w-4 h-4 text-indigo-500" />
+                      信号预处理
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="flex items-center gap-2">
+                        <input type="checkbox" id="standardization" checked={preprocessing.standardization} onChange={(e) => setPreprocessing({ ...preprocessing, standardization: e.target.checked })} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
+                        <label htmlFor="standardization" className="text-sm font-medium text-gray-700">启用标准化</label>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">PCA 维度（0 为关闭）</label>
+                        <input type="number" min="0" value={preprocessing.pca} onChange={(e) => setPreprocessing({ ...preprocessing, pca: parseInt(e.target.value) || 0 })} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white" />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+                    <h5 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                      <Settings2 className="w-4 h-4 text-indigo-500" />
+                      模型配置
+                    </h5>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">模型类型</label>
+                      <select value={modelType} onChange={(e) => setModelType(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white">
+                        {workflow === 'regression' ? <option value="RandomForestRegressor">RandomForestRegressor</option> : <>
+                          <option value="Autoencoder">Autoencoder</option>
+                          <option value="VAE">Variational Autoencoder (VAE)</option>
+                          <option value="IsolationForest">Isolation Forest</option>
+                          <option value="OneClassSVM">One-Class SVM</option>
+                        </>}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      {modelType === 'Autoencoder' && (
+                        <>
+                          <div><label className="block text-xs font-medium text-gray-500 mb-1">Epochs</label><input type="number" value={parameters.epochs || ''} onChange={(e) => setParameters({ ...parameters, epochs: parseInt(e.target.value) })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm bg-white" /></div>
+                          <div><label className="block text-xs font-medium text-gray-500 mb-1">Batch Size</label><input type="number" value={parameters.batchSize || ''} onChange={(e) => setParameters({ ...parameters, batchSize: parseInt(e.target.value) })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm bg-white" /></div>
+                        </>
+                      )}
+                    </div>
+                  </section>
+                </div>
               </div>
             </div>
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="standardization" checked={preprocessing.standardization} onChange={(e) => setPreprocessing({ ...preprocessing, standardization: e.target.checked })} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
-                <label htmlFor="standardization" className="text-sm font-medium text-gray-700">启用标准化</label>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">PCA 降维维度</label>
-                <input type="number" min="0" value={preprocessing.pca} onChange={(e) => setPreprocessing({ ...preprocessing, pca: parseInt(e.target.value) || 0 })} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="输入组件数量 (0 表示不使用)" />
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">模型类型</label>
-                <select value={modelType} onChange={(e) => setModelType(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                  {workflow === 'regression' ? <option value="RandomForestRegressor">RandomForestRegressor</option> : <>
-                    <option value="Autoencoder">Autoencoder</option>
-                    <option value="VAE">Variational Autoencoder (VAE)</option>
-                    <option value="IsolationForest">Isolation Forest</option>
-                    <option value="OneClassSVM">One-Class SVM</option>
-                  </>}
-                </select>
-              </div>
-              {/* Simplified Parameters rendering for brevity - kept core inputs */}
-              <div className="grid grid-cols-2 gap-4">
-                 {/* Reusing the same parameter inputs as Step 2 logic... */}
-                 {modelType === 'Autoencoder' && (
-                  <>
-                    <div><label className="block text-xs font-medium text-gray-500 mb-1">Epochs</label><input type="number" value={parameters.epochs || ''} onChange={(e) => setParameters({ ...parameters, epochs: parseInt(e.target.value) })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" /></div>
-                    <div><label className="block text-xs font-medium text-gray-500 mb-1">Batch Size</label><input type="number" value={parameters.batchSize || ''} onChange={(e) => setParameters({ ...parameters, batchSize: parseInt(e.target.value) })} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm" /></div>
-                  </>
-                )}
-                 {/* ... other model params ... */}
-              </div>
-            </div>
-          </Tabs>
+          </section>
+
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
             <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">取消</button>
-            <button onClick={handleCreateModel} disabled={selectedSignalIds.length === 0} className="flex items-center gap-2 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">开始训练</button>
+            <button onClick={handleCreateModel} disabled={selectedSignalIds.length === 0} className="flex items-center gap-2 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">立即开始训练</button>
           </div>
         </div>
       </Modal>
-
       {/* Validation Modal */}
       <Modal isOpen={isValidationModalOpen} onClose={() => setIsValidationModalOpen(false)} title="运行新验证">
         <div className="space-y-4">
