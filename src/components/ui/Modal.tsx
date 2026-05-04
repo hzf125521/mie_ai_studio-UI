@@ -6,10 +6,11 @@ interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
+  hideTitle?: boolean;
   children: React.ReactNode;
 }
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, hideTitle = false, children }) => {
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
@@ -37,19 +38,30 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <Dialog.Title
-                  as="h3"
-                  className="text-lg font-medium leading-6 text-gray-900 flex justify-between items-center"
-                >
-                  {title}
-                  <button
-                    onClick={onClose}
-                    className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                {hideTitle ? (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={onClose}
+                      className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                ) : (
+                  <Dialog.Title
+                    as="h3"
+                    className="text-lg font-medium leading-6 text-gray-900 flex justify-between items-center"
                   >
-                    <X className="h-5 w-5" />
-                  </button>
-                </Dialog.Title>
-                <div className="mt-4">{children}</div>
+                    {title}
+                    <button
+                      onClick={onClose}
+                      className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </Dialog.Title>
+                )}
+                <div className={hideTitle ? "mt-2" : "mt-4"}>{children}</div>
               </Dialog.Panel>
             </Transition.Child>
           </div>
