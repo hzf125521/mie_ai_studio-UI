@@ -63,10 +63,10 @@ export const SignalInfoTooltip: React.FC<SignalInfoTooltipProps> = ({ signal }) 
         >
           <div className="w-64 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg relative">
             <div className="space-y-1">
-              <p><span className="font-semibold text-gray-300">Time Range:</span><br/>{new Date(signal.timeRange[0]).toLocaleString()} - {new Date(signal.timeRange[1]).toLocaleString()}</p>
-              <p><span className="font-semibold text-gray-300">Samples:</span> {signal.data.length}</p>
-              <p><span className="font-semibold text-gray-300">Features:</span><br/>{signal.features.join(', ')}</p>
-              {signal.targetFeature && <p><span className="font-semibold text-gray-300">Target (y):</span><br/>{signal.targetFeature}</p>}
+              <p><span className="font-semibold text-gray-300">时间范围:</span><br/>{new Date(signal.timeRange[0]).toLocaleString()} - {new Date(signal.timeRange[1]).toLocaleString()}</p>
+              <p><span className="font-semibold text-gray-300">样本数:</span> {signal.data.length}</p>
+              <p><span className="font-semibold text-gray-300">特征:</span><br/>{signal.features.join(', ')}</p>
+              {signal.targetFeature && <p><span className="font-semibold text-gray-300">目标特征 (y):</span><br/>{signal.targetFeature}</p>}
             </div>
             <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
           </div>

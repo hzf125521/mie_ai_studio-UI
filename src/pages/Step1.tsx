@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { TimeSeriesChart } from '../components/charts/TimeSeriesChart';
 import { PCAChart } from '../components/charts/PCAChart';
 import { FeatureCorrelationHeatmap } from '../components/charts/FeatureCorrelationHeatmap';
-import { Plus, Trash2, Calendar, Activity, Edit2, Check, X, Search, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Calendar, Edit2, Check, X, Search, ChevronDown, Info } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { SignalInfoTooltip } from '../components/SignalInfoTooltip';
 
@@ -207,14 +207,14 @@ const TargetFeatureSelect: React.FC<{
 
   return (
     <div className="relative" ref={containerRef}>
-      <label className="block text-xs font-medium text-gray-700 mb-1">目标特征</label>
+      <label className="block text-xs font-medium text-gray-700 mb-1">目标特征（Y）</label>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="w-full bg-white border border-gray-300 rounded-md py-1.5 px-3 text-left focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-xs flex justify-between items-center"
       >
         <span className="block truncate">
-          {selected ? `已选择${selectedFeatureName}` : '请选择目标特征...'}
+          {selected ? `已选择${selectedFeatureName}` : '请选择特征...'}
         </span>
         <ChevronDown className={cn("h-4 w-4 text-gray-400 transition-transform", isOpen && "rotate-180")} />
       </button>
@@ -278,15 +278,15 @@ const TargetFeatureSelect: React.FC<{
 
 export const Step1: React.FC = () => {
   const { signals, addSignal, updateSignal, removeSignal, workflow, models, validations } = useApp();
-  const [selectedSignalIds, setSelectedSignalIds] = useState<string[]>([]);
+  const [selectedSignalId, setSelectedSignalId] = useState<string | null>(null);
   const [startTime, setStartTime] = useState('2023-01-01T00:00');
   const [endTime, setEndTime] = useState('2023-01-02T00:00');
   const [selectedFeatures, setSelectedFeatures] = useState<Record<string, string[]>>({});
   const [selectedTarget, setSelectedTarget] = useState('');
   const [previewSignal, setPreviewSignal] = useState<any | null>(null);
   const [filterName, setFilterName] = useState('');
-  const [filterDate, setFilterDate] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [highlightTime, setHighlightTime] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
   const [hoveredSignalId, setHoveredSignalId] = useState<string | null>(null);
 
@@ -320,19 +320,17 @@ export const Step1: React.FC = () => {
   const filteredSignals = useMemo(() => {
     return signals.filter(s => {
       const matchName = s.name.toLowerCase().includes(filterName.toLowerCase());
-      const matchDate = filterDate ? s.createdAt.startsWith(filterDate) : true;
-      return matchName && matchDate;
+      return matchName;
     });
-  }, [signals, filterName, filterDate]);
+  }, [signals, filterName]);
 
   const displaySignal = useMemo(() => {
     if (previewSignal) return previewSignal;
-    if (selectedSignalIds.length > 0) {
-      const latestSelectedId = selectedSignalIds[selectedSignalIds.length - 1];
-      return signals.find(s => s.id === latestSelectedId) || null;
+    if (selectedSignalId) {
+      return signals.find(s => s.id === selectedSignalId) || null;
     }
     return [...signals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
-  }, [previewSignal, selectedSignalIds, signals]);
+  }, [previewSignal, selectedSignalId, signals]);
 
   const handleFeatureChange = (pointId: string, features: string[]) => {
     setSelectedFeatures(prev => ({ ...prev, [pointId]: features }));
@@ -371,8 +369,10 @@ export const Step1: React.FC = () => {
     }
 
     const id = `sig-preview-${Date.now()}`;
+    const startMs = new Date(startTime).getTime();
+    const intervalMs = 30 * 60 * 1000;
     const mockData = Array.from({ length: 50 }, (_, i) => {
-      const point: Record<string, any> = { time: i };
+      const point: Record<string, any> = { time: startMs + i * intervalMs };
       const scales = [1, 100, 1000];
       flatFeatures.forEach((feature, idx) => {
         const scale = scales[idx % scales.length];
@@ -429,15 +429,7 @@ export const Step1: React.FC = () => {
   };
 
   const toggleSignalSelection = (id: string) => {
-    if (selectedSignalIds.includes(id)) {
-      setSelectedSignalIds(selectedSignalIds.filter(sid => sid !== id));
-      return;
-    }
-    if (selectedSignalIds.length >= 5) {
-      alert('At most 5 signals can be selected.');
-      return;
-    }
-    setSelectedSignalIds([...selectedSignalIds, id]);
+    setSelectedSignalId(prev => prev === id ? null : id);
   };
 
   const startEditing = (signal: any) => {
@@ -470,7 +462,7 @@ export const Step1: React.FC = () => {
       <div className="w-96 h-full flex-shrink-0 bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col overflow-hidden">
         <div className="flex-shrink-0">
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-indigo-600" /> 添加信号
+            <Plus className="w-5 h-5 text-indigo-600" /> 创建特征样本
           </h2>
           <div className="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
             <FeatureTreeSelect
@@ -497,7 +489,7 @@ export const Step1: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">开始时间</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">开始时间</label>
                 <input
                   type="datetime-local"
                   value={startTime}
@@ -509,7 +501,7 @@ export const Step1: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">结束时间</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">结束时间</label>
                 <input
                   type="datetime-local"
                   value={endTime}
@@ -533,7 +525,7 @@ export const Step1: React.FC = () => {
                 onClick={handleAddSignal}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
               >
-                添加信号
+                创建
               </button>
             </div>
           </div>
@@ -541,26 +533,20 @@ export const Step1: React.FC = () => {
 
         <div className="border-t border-gray-200 pt-4 mt-4 flex-1 flex flex-col min-h-0 overflow-hidden">
           <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2 flex-shrink-0">
-            <Activity className="w-4 h-4 text-gray-500" /> 信号列表
+            <Plus className="w-4 h-4 text-gray-500" /> 特征样本
           </h3>
 
           <div className="mb-3 space-y-2 flex-shrink-0">
             <div className="relative">
               <input
                 type="text"
-                placeholder="搜索名称..."
+                placeholder="搜索样本名称..."
                 value={filterName}
                 onChange={(e) => setFilterName(e.target.value)}
                 className="w-full pl-8 pr-2 py-1 border border-gray-300 rounded-md text-xs"
               />
               <Search className="w-3 h-3 text-gray-400 absolute left-2.5 top-2" />
             </div>
-            <input
-              type="date"
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs"
-            />
           </div>
 
           <div className="flex-1 overflow-y-auto pr-1 min-h-0">
@@ -569,8 +555,8 @@ export const Step1: React.FC = () => {
                 <li
                   key={signal.id}
                   className={cn(
-                    'group flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer',
-                    selectedSignalIds.includes(signal.id)
+                    'group flex flex-col p-3 rounded-lg border transition-all cursor-pointer',
+                    selectedSignalId === signal.id
                       ? 'bg-indigo-50 border-indigo-300 ring-1 ring-indigo-300'
                       : 'bg-white border-gray-200 hover:border-indigo-200 hover:bg-gray-50'
                   )}
@@ -578,7 +564,7 @@ export const Step1: React.FC = () => {
                   onMouseLeave={() => setHoveredSignalId(null)}
                   onClick={() => toggleSignalSelection(signal.id)}
                 >
-                  <div className="flex flex-col flex-1 min-w-0 mr-2">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     {editingId === signal.id ? (
                       <div className="flex items-center gap-1 editing-container" onClick={e => e.stopPropagation()}>
                         <input
@@ -600,46 +586,55 @@ export const Step1: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 h-5">
+                      <>
                         <span className="text-sm font-medium text-gray-900 truncate" title={signal.name}>
                           {signal.name}
                         </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            startEditing(signal);
-                          }}
-                          className={cn(
-                            'text-gray-400 hover:text-indigo-600 transition-opacity duration-200 p-1 rounded hover:bg-gray-100',
-                            hoveredSignalId === signal.id ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                          )}
-                        >
-                          <Edit2 className="w-3 h-3" />
-                        </button>
-                      </div>
+                        <SignalInfoTooltip signal={signal} />
+                      </>
                     )}
-                    <span className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                      <Calendar className="w-3 h-3" />{' '}
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-xs text-gray-500 flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
                       {new Date(signal.createdAt).toLocaleString(undefined, {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
                         hour: '2-digit',
                         minute: '2-digit',
+                        second: '2-digit',
                         hour12: false,
                       })}
                     </span>
+                    <div className="flex items-center gap-0.5">
+                      <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEditing(signal);
+                      }}
+                      className={cn(
+                        'text-gray-400 hover:text-indigo-600 transition-opacity duration-200 p-1 rounded hover:bg-gray-100',
+                        hoveredSignalId === signal.id ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                      )}
+                    >
+                      <Edit2 className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveSignal(signal.id);
+                      }}
+                      className={cn(
+                        'p-1 text-gray-400 hover:text-red-500 transition-opacity duration-200 rounded hover:bg-gray-100',
+                        hoveredSignalId === signal.id ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                      )}
+                      title="Delete signal"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    </div>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveSignal(signal.id);
-                    }}
-                    className={cn(
-                      'p-1 text-gray-400 hover:text-red-500 transition-opacity duration-200 rounded hover:bg-gray-100',
-                      hoveredSignalId === signal.id ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                    )}
-                    title="Delete signal"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
                 </li>
               ))}
               {filteredSignals.length === 0 && (
@@ -650,44 +645,35 @@ export const Step1: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 h-full flex flex-col overflow-hidden">
+      <div className="flex-1 h-full flex flex-col">
         {displaySignal ? (
           <div
             key={displaySignal.id}
             className={cn(
-              'flex-1 bg-white rounded-xl shadow-sm border p-6 overflow-hidden flex flex-col',
+              'flex-1 bg-white rounded-xl shadow-sm border p-6 flex flex-col overflow-visible',
               displaySignal.isPreview ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-gray-200'
             )}
           >
-            <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold text-gray-900">{displaySignal.name}</h3>
-                {displaySignal.isPreview && (
-                  <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-0.5 rounded-full font-medium border border-indigo-200">
-                    预览
-                  </span>
-                )}
-                <SignalInfoTooltip signal={displaySignal} />
-              </div>
-              <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-600">
-                创建时间: {new Date(displaySignal.createdAt).toLocaleString()}
-              </span>
-            </div>
-
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="flex-1 min-h-0 mb-4">
+            <div className="flex-1 flex flex-col overflow-visible">
+              <div className="flex-1 min-h-0 mb-4 overflow-visible">
                 <TimeSeriesChart
                   data={displaySignal.data}
                   features={displaySignal.features}
                   targetFeature={displaySignal.targetFeature}
                   title={workflow === 'regression' ? '输入特征 VS 目标特征' : undefined}
+                  highlightTime={highlightTime}
+                  onHighlightTime={setHighlightTime}
                 />
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-72 flex-shrink-0">
-                <div className="flex flex-col">
-                  <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden">
-                    <PCAChart data={displaySignal.data.map((d: any) => ({ ...d, type: 'Data' }))} />
+                <div className="flex flex-col overflow-visible">
+                  <div className="flex-1 overflow-visible">
+                    <PCAChart
+                      data={displaySignal.data.map((d: any) => ({ ...d, type: 'Data' }))}
+                      highlightTime={highlightTime}
+                      onHighlightTime={setHighlightTime}
+                    />
                   </div>
                 </div>
                 <div className="flex flex-col">
@@ -700,9 +686,9 @@ export const Step1: React.FC = () => {
           </div>
         ) : (
           <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center text-gray-400">
-            <Activity className="w-16 h-16 mb-4 opacity-20" />
-            <p className="text-lg">暂无信号</p>
-            <p className="text-sm">请在左侧选择或创建新的信号</p>
+            <Plus className="w-16 h-16 mb-4 opacity-20" />
+            <p className="text-lg">无特征样本</p>
+            <p className="text-sm">请先在左侧进行创建</p>
           </div>
         )}
       </div>

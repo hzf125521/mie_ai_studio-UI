@@ -505,13 +505,13 @@ export const StepModelTrainingValidation: React.FC = () => {
           </div>
 
           {/* Main Content */}
-          <div className="flex-1 overflow-y-auto bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex-1 overflow-y-auto bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col">
             {displayModel ? (
-              <div className="space-y-6">
+              <div className="space-y-6 flex-1">
                 {activeTab === 'training' && (
                   <>
                     {displayModel.status === 'training' ? (
-                      <div className="flex flex-col items-center justify-center h-full min-h-[24rem] text-center">
+                      <div className="flex flex-col items-center justify-center h-full text-center">
                         <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
                         <h3 className="text-lg font-medium text-gray-900">训练中...</h3>
                         <p className="text-gray-500">请稍候，模型正在训练。</p>
@@ -726,7 +726,8 @@ export const StepModelTrainingValidation: React.FC = () => {
                         )}
                       </>
                     ) : (
-                      <div className="h-full min-h-[16rem] flex flex-col items-center justify-center text-gray-500 text-center">
+                      <div className="h-full min-h-[24rem] flex flex-col items-center justify-center text-gray-400 text-center">
+                        <Plus className="w-16 h-16 mb-4 opacity-20" />
                         <p className="text-lg">该模型暂无验证记录</p>
                         <p className="text-sm mt-1">点击“新建验证”以创建一个验证</p>
                       </div>
@@ -873,7 +874,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400">
+              <div className="flex flex-col items-center justify-center flex-1 text-gray-400">
                 <Plus className="w-16 h-16 mb-4 opacity-20" />
                 <p className="text-lg">点击“新建模型”以创建一个模型</p>
               </div>
@@ -974,7 +975,7 @@ export const StepModelTrainingValidation: React.FC = () => {
 
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
             <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">取消</button>
-            <button onClick={handleCreateModel} disabled={selectedSignalIds.length === 0} className="flex items-center gap-2 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">立即开始训练</button>
+            <button onClick={handleCreateModel} disabled={selectedSignalIds.length === 0} className="flex items-center gap-2 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">开始训练</button>
           </div>
         </div>
       </Modal>

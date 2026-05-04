@@ -60,7 +60,7 @@ export const FeatureCorrelationHeatmap: React.FC<FeatureCorrelationHeatmapProps>
 
   return (
     <div className="h-full w-full bg-white rounded-lg border border-gray-200 p-4 overflow-auto">
-      <h3 className="text-sm font-medium text-gray-500 mb-3">Feature Correlation</h3>
+      <h3 className="text-sm font-medium text-gray-500 mb-3">特征相关性热力图</h3>
       {features.length === 0 ? (
         <div className="h-[calc(100%-2rem)] flex items-center justify-center text-sm text-gray-400">
           No feature data
