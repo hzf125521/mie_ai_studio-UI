@@ -72,29 +72,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       { id: 'dev-1', name: 'Pump Station A', code: 'PSA-001' },
       { id: 'dev-2', name: 'Compressor Unit B', code: 'CUB-002' },
     ]);
-
-    // Add some initial mock signals
-    const mockSignal: Signal = {
-      id: 'sig-1',
-      name: 'Signal_20230101_1200',
-      createdAt: '2023-01-01T12:00:00.000Z',
-      timeRange: ['2023-01-01T00:00', '2023-01-02T00:00'],
-      features: ['PointA_Temp', 'PointA_Pressure'],
-      targetFeature: 'PointA_Temp', // Default target for regression
-      workflow: 'outliers', // Default to outliers for mock
-      deviceId: 'dev-1',
-      data: Array.from({ length: 50 }, (_, i) => ({
-        time: i,
-        PointA_Temp: Math.sin(i * 0.2) + Math.random() * 0.2,
-        PointA_Pressure: Math.cos(i * 0.2) + Math.random() * 0.2,
-        x: Math.random() * 10,
-        y: Math.random() * 10,
-        z: Math.random() * 10,
-        anomalyScore: Math.random(),
-        type: Math.random() > 0.9 ? 'Anomaly' : 'Normal',
-      })),
-    };
-    setSignals([mockSignal]);
   }, []);
 
   const filteredSignals = useMemo(() => {

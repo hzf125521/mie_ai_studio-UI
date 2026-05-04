@@ -12,13 +12,13 @@ const MEASUREMENT_POINTS = [
   { id: 'PointB', name: 'Measurement Point B', features: ['Speed', 'Current', 'Voltage'] },
 ];
 
-const MultiSelect: React.FC<{
-  label: string;
-  options: string[];
-  selected: string[];
-  onChange: (selected: string[]) => void;
-}> = ({ label, options, selected, onChange }) => {
+const FeatureTreeSelect: React.FC<{
+  selected: Record<string, string[]>;
+  onChange: (selected: Record<string, string[]>) => void;
+  excludeFeature?: string;
+}> = ({ selected, onChange, excludeFeature }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [expandedPoints, setExpandedPoints] = useState<Set<string>>(new Set(MEASUREMENT_POINTS.map(p => p.id)));
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -31,47 +31,128 @@ const MultiSelect: React.FC<{
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const toggleOption = (option: string) => {
-    if (selected.includes(option)) {
-      onChange(selected.filter(s => s !== option));
-    } else {
-      onChange([...selected, option]);
-    }
+  const totalCount = useMemo(() => {
+    return (Object.values(selected) as string[][]).reduce((sum, features) => sum + features.length, 0);
+  }, [selected]);
+
+  const togglePoint = (pointId: string) => {
+    setExpandedPoints(prev => {
+      const next = new Set(prev);
+      if (next.has(pointId)) {
+        next.delete(pointId);
+      } else {
+        next.add(pointId);
+      }
+      return next;
+    });
+  };
+
+  const isFeatureSelected = (pointId: string, feature: string) => {
+    return selected[pointId]?.includes(feature) ?? false;
+  };
+
+  const toggleFeature = (pointId: string, feature: string) => {
+    const currentFeatures = selected[pointId] || [];
+    const newFeatures = currentFeatures.includes(feature)
+      ? currentFeatures.filter(f => f !== feature)
+      : [...currentFeatures, feature];
+    onChange({ ...selected, [pointId]: newFeatures });
+  };
+
+  const isPointAllSelected = (pointId: string, availableFeatures: string[]) => {
+    const currentFeatures = selected[pointId] || [];
+    return availableFeatures.length > 0 && availableFeatures.every(f => currentFeatures.includes(f));
+  };
+
+  const isPointPartialSelected = (pointId: string, availableFeatures: string[]) => {
+    const currentFeatures = selected[pointId] || [];
+    const selectedCount = availableFeatures.filter(f => currentFeatures.includes(f)).length;
+    return selectedCount > 0 && selectedCount < availableFeatures.length;
+  };
+
+  const togglePointAll = (pointId: string, availableFeatures: string[]) => {
+    const currentFeatures = selected[pointId] || [];
+    const allSelected = isPointAllSelected(pointId, availableFeatures);
+    const newFeatures = allSelected ? [] : [...availableFeatures];
+    onChange({ ...selected, [pointId]: newFeatures });
   };
 
   return (
     <div className="relative" ref={containerRef}>
-      <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+      <label className="block text-xs font-medium text-gray-700 mb-1">学习特征（X）</label>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="w-full bg-white border border-gray-300 rounded-md py-1.5 px-3 text-left focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-xs flex justify-between items-center"
       >
         <span className="block truncate">
-          {selected.length === 0 ? 'Select features...' : `Selected ${selected.length}`}
+          {totalCount === 0 ? '请选择特征...' : `已选择${totalCount}个特征`}
         </span>
-        <ChevronDown className="h-4 w-4 text-gray-400" />
+        <ChevronDown className={cn("h-4 w-4 text-gray-400 transition-transform", isOpen && "rotate-180")} />
       </button>
 
       {isOpen && (
-        <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 ring-1 ring-black ring-opacity-5 overflow-auto">
-          {options.map((option) => (
-            <div
-              key={option}
-              className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-indigo-50"
-              onClick={() => toggleOption(option)}
-            >
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mr-3"
-                  checked={selected.includes(option)}
-                  readOnly
-                />
-                <span className="block truncate font-normal text-xs">{option}</span>
+        <div className="absolute z-20 mt-1 w-full bg-white shadow-lg max-h-72 rounded-md py-1 ring-1 ring-black ring-opacity-5 overflow-auto">
+          {MEASUREMENT_POINTS.map(point => {
+            const availableFeatures = excludeFeature
+              ? point.features.filter(f => `${point.id}_${f}` !== excludeFeature)
+              : point.features;
+            const isExpanded = expandedPoints.has(point.id);
+            const allSelected = isPointAllSelected(point.id, availableFeatures);
+            const partialSelected = isPointPartialSelected(point.id, availableFeatures);
+
+            return (
+              <div key={point.id} className="select-none">
+                <div
+                  className="flex items-center py-2 px-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                  onClick={() => togglePoint(point.id)}
+                >
+                  <ChevronDown
+                    className={cn(
+                      "h-3 w-3 text-gray-400 mr-2 transition-transform",
+                      isExpanded && "rotate-180"
+                    )}
+                  />
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mr-2"
+                    checked={allSelected}
+                    ref={el => {
+                      if (el) el.indeterminate = partialSelected;
+                    }}
+                    onClick={e => {
+                      e.stopPropagation();
+                      togglePointAll(point.id, availableFeatures);
+                    }}
+                    readOnly
+                  />
+                  <span className="font-medium text-xs text-gray-700">{point.name}</span>
+                  <span className="ml-auto text-xs text-gray-400">
+                    {selected[point.id]?.length || 0}/{availableFeatures.length}
+                  </span>
+                </div>
+                {isExpanded && (
+                  <div className="bg-gray-50">
+                    {availableFeatures.map(feature => (
+                      <div
+                        key={feature}
+                        className="flex items-center py-1.5 pl-10 pr-3 hover:bg-indigo-50 cursor-pointer"
+                        onClick={() => toggleFeature(point.id, feature)}
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mr-3"
+                          checked={isFeatureSelected(point.id, feature)}
+                          readOnly
+                        />
+                        <span className="text-xs text-gray-600">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -275,22 +356,14 @@ export const Step1: React.FC = () => {
             <Plus className="w-5 h-5 text-indigo-600" /> Add Signal
           </h2>
           <div className="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
-            {MEASUREMENT_POINTS.map(point => {
-              const availableFeatures =
-                workflow === 'regression' && selectedTarget
-                  ? point.features.filter(f => `${point.id}_${f}` !== selectedTarget)
-                  : point.features;
-
-              return (
-                <MultiSelect
-                  key={point.id}
-                  label={workflow === 'regression' ? `${point.name} (Input X)` : point.name}
-                  options={availableFeatures}
-                  selected={selectedFeatures[point.id] || []}
-                  onChange={(features) => handleFeatureChange(point.id, features)}
-                />
-              );
-            })}
+            <FeatureTreeSelect
+              selected={selectedFeatures}
+              onChange={(features) => {
+                setSelectedFeatures(features);
+                setPreviewSignal(null);
+              }}
+              excludeFeature={workflow === 'regression' ? selectedTarget : undefined}
+            />
 
             {workflow === 'regression' && (
               <div>
