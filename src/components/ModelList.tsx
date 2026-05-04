@@ -10,6 +10,7 @@ interface ModelListProps {
   onSelectModel: (id: string) => void;
   displayModelId?: string; // The model currently being displayed (if different from selected, e.g. default)
   deployedModelId?: string | null;
+  showTitle?: boolean;
 }
 
 export const ModelList: React.FC<ModelListProps> = ({
@@ -17,7 +18,8 @@ export const ModelList: React.FC<ModelListProps> = ({
   selectedModelId,
   onSelectModel,
   displayModelId,
-  deployedModelId
+  deployedModelId,
+  showTitle = true
 }) => {
   const { updateModel, removeModel, validations, deployedModels } = useApp();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -49,7 +51,7 @@ export const ModelList: React.FC<ModelListProps> = ({
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <h3 className="text-sm font-medium text-gray-900 mb-3">Model List</h3>
+      {showTitle && <h3 className="text-sm font-medium text-gray-900 mb-3">Model List</h3>}
       <ul className="space-y-3">
         {models.map((model) => {
           const hasValidated = validations.some(v => v.modelId === model.id);

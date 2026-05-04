@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Modal } from '../components/ui/Modal';
 import { Plus, Play, CheckCircle, Activity, Edit2, Trash2, Check, X, Rocket, Eye, ArrowLeft, ChevronDown, Settings2, SlidersHorizontal, Radio } from 'lucide-react';
@@ -436,7 +436,7 @@ export const StepModelTrainingValidation: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full gap-6 flex-col">
+    <div className="w-full h-full flex gap-6 flex-col">
        {/* Top Switcher */}
        <div className="flex bg-white p-1 rounded-lg shadow-sm border border-gray-200 w-full mb-2">
          <button
@@ -500,6 +500,7 @@ export const StepModelTrainingValidation: React.FC = () => {
               onSelectModel={setSelectedModelId}
               displayModelId={displayModel?.id}
               deployedModelId={deployedModelId}
+              showTitle={false}
             />
           </div>
 
@@ -510,7 +511,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                 {activeTab === 'training' && (
                   <>
                     {displayModel.status === 'training' ? (
-                      <div className="flex flex-col items-center justify-center h-96">
+                      <div className="flex flex-col items-center justify-center h-full min-h-[24rem] text-center">
                         <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
                         <h3 className="text-lg font-medium text-gray-900">训练中...</h3>
                         <p className="text-gray-500">请稍候，模型正在训练。</p>
@@ -725,10 +726,9 @@ export const StepModelTrainingValidation: React.FC = () => {
                         )}
                       </>
                     ) : (
-                       <div className="flex flex-col items-center justify-center h-64 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-200">
-                        <Activity className="w-12 h-12 mb-3 opacity-20" />
-                        <p>暂无验证记录。</p>
-                        <p className="text-sm">点击 "新建验证" 测试此模型。</p>
+                      <div className="h-full min-h-[16rem] flex flex-col items-center justify-center text-gray-500 text-center">
+                        <p className="text-lg">该模型暂无验证记录</p>
+                        <p className="text-sm mt-1">点击“新建验证”以创建一个验证</p>
                       </div>
                     )}
                   </>
@@ -805,7 +805,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                         )}
                       </div>
                     ) : (
-                      <div className="bg-gray-50 rounded-2xl p-8 border border-gray-100 text-center">
+                      <div className="rounded-2xl p-8 border border-gray-100 text-center">
                         <div className={cn(
                           "w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-all",
                           deployedModelId === displayModel.id ? "bg-green-100" : "bg-indigo-100"
@@ -875,7 +875,7 @@ export const StepModelTrainingValidation: React.FC = () => {
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-gray-400">
                 <Plus className="w-16 h-16 mb-4 opacity-20" />
-                <p className="text-lg">创建一个新模型以开始训练。</p>
+                <p className="text-lg">点击“新建模型”以创建一个模型</p>
               </div>
             )}
           </div>
@@ -910,7 +910,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                     </label>
                   ))}
                 </div>
-              ) : <p className="text-sm text-gray-500 text-center py-4">无可用信号。请先在步骤1中添加信号。</p>}
+              ) : <p className="text-sm text-gray-500 text-center py-4">当前无可用样本，请先在步骤2中创建样本。</p>}
             </div>
           </section>
 

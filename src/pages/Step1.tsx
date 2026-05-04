@@ -159,6 +159,123 @@ const FeatureTreeSelect: React.FC<{
   );
 };
 
+const TargetFeatureSelect: React.FC<{
+  selected: string;
+  onChange: (selected: string) => void;
+  excludeFeatures: string[];
+}> = ({ selected, onChange, excludeFeatures }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [expandedPoints, setExpandedPoints] = useState<Set<string>>(new Set(MEASUREMENT_POINTS.map(p => p.id)));
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedFeatureName = useMemo(() => {
+    if (!selected) return '';
+    const [pointId, featureName] = selected.split('_');
+    const point = MEASUREMENT_POINTS.find(p => p.id === pointId);
+    return point ? `${point.name} - ${featureName}` : selected;
+  }, [selected]);
+
+  const togglePoint = (pointId: string) => {
+    setExpandedPoints(prev => {
+      const next = new Set(prev);
+      if (next.has(pointId)) {
+        next.delete(pointId);
+      } else {
+        next.add(pointId);
+      }
+      return next;
+    });
+  };
+
+  const selectFeature = (pointId: string, feature: string) => {
+    const featureKey = `${pointId}_${feature}`;
+    if (!excludeFeatures.includes(featureKey)) {
+      onChange(featureKey);
+      setIsOpen(false);
+    }
+  };
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <label className="block text-xs font-medium text-gray-700 mb-1">目标特征</label>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full bg-white border border-gray-300 rounded-md py-1.5 px-3 text-left focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-xs flex justify-between items-center"
+      >
+        <span className="block truncate">
+          {selected ? `已选择${selectedFeatureName}` : '请选择目标特征...'}
+        </span>
+        <ChevronDown className={cn("h-4 w-4 text-gray-400 transition-transform", isOpen && "rotate-180")} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-20 mt-1 w-full bg-white shadow-lg max-h-72 rounded-md py-1 ring-1 ring-black ring-opacity-5 overflow-auto">
+          {MEASUREMENT_POINTS.map(point => {
+            const isExpanded = expandedPoints.has(point.id);
+
+            return (
+              <div key={point.id} className="select-none">
+                <div
+                  className="flex items-center py-2 px-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                  onClick={() => togglePoint(point.id)}
+                >
+                  <ChevronDown
+                    className={cn(
+                      "h-3 w-3 text-gray-400 mr-2 transition-transform",
+                      isExpanded && "rotate-180"
+                    )}
+                  />
+                  <span className="font-medium text-xs text-gray-700">{point.name}</span>
+                </div>
+                {isExpanded && (
+                  <div className="bg-gray-50">
+                    {point.features.map(feature => {
+                      const featureKey = `${point.id}_${feature}`;
+                      const isExcluded = excludeFeatures.includes(featureKey);
+                      const isSelected = selected === featureKey;
+
+                      return (
+                        <div
+                          key={feature}
+                          className={cn(
+                            "flex items-center py-1.5 pl-10 pr-3 cursor-pointer",
+                            isExcluded ? "opacity-50 cursor-not-allowed" : "hover:bg-indigo-50"
+                          )}
+                          onClick={() => !isExcluded && selectFeature(point.id, feature)}
+                        >
+                          <input
+                            type="radio"
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 mr-3"
+                            checked={isSelected}
+                            disabled={isExcluded}
+                            readOnly
+                          />
+                          <span className={cn("text-xs", isExcluded ? "text-gray-400" : "text-gray-600")}>{feature}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const Step1: React.FC = () => {
   const { signals, addSignal, updateSignal, removeSignal, workflow, models, validations } = useApp();
   const [selectedSignalIds, setSelectedSignalIds] = useState<string[]>([]);
@@ -349,11 +466,11 @@ export const Step1: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full gap-6">
-      <div className="w-96 flex-shrink-0 bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col gap-6">
-        <div>
+    <div className="flex flex-1 min-h-0 w-full gap-6 overflow-hidden">
+      <div className="w-96 h-full flex-shrink-0 bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col overflow-hidden">
+        <div className="flex-shrink-0">
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-indigo-600" /> Add Signal
+            <Plus className="w-5 h-5 text-indigo-600" /> 添加信号
           </h2>
           <div className="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
             <FeatureTreeSelect
@@ -366,33 +483,21 @@ export const Step1: React.FC = () => {
             />
 
             {workflow === 'regression' && (
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Target Feature (y)</label>
-                <select
-                  value={selectedTarget}
-                  onChange={(e) => {
-                    setSelectedTarget(e.target.value);
-                    setPreviewSignal(null);
-                  }}
-                  className="w-full bg-white border border-gray-300 rounded-md py-1.5 px-3 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="">Select target...</option>
-                  {allFeatures.map(f => {
-                    const [pointId, featureName] = f.split('_');
-                    const isSelected = selectedFeatures[pointId]?.includes(featureName);
-                    return (
-                      <option key={f} value={f} disabled={isSelected}>
-                        {f}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
+              <TargetFeatureSelect
+                selected={selectedTarget}
+                onChange={(target) => {
+                  setSelectedTarget(target);
+                  setPreviewSignal(null);
+                }}
+                excludeFeatures={Object.entries(selectedFeatures).flatMap(([pointId, feats]) =>
+                  (feats as string[]).map(f => `${pointId}_${f}`)
+                )}
+              />
             )}
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Start Time</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">开始时间</label>
                 <input
                   type="datetime-local"
                   value={startTime}
@@ -404,7 +509,7 @@ export const Step1: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">End Time</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">结束时间</label>
                 <input
                   type="datetime-local"
                   value={endTime}
@@ -422,28 +527,28 @@ export const Step1: React.FC = () => {
                 onClick={handlePreviewSignal}
                 className="w-full flex justify-center py-2 px-4 border border-indigo-600 rounded-md shadow-sm text-sm font-medium text-indigo-600 bg-white hover:bg-indigo-50"
               >
-                Preview
+                预览
               </button>
               <button
                 onClick={handleAddSignal}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
               >
-                Add Signal
+                添加信号
               </button>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-gray-200 pt-4 flex-1 flex flex-col min-h-0">
-          <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-gray-500" /> Signals
+        <div className="border-t border-gray-200 pt-4 mt-4 flex-1 flex flex-col min-h-0 overflow-hidden">
+          <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2 flex-shrink-0">
+            <Activity className="w-4 h-4 text-gray-500" /> 信号列表
           </h3>
 
-          <div className="mb-3 space-y-2">
+          <div className="mb-3 space-y-2 flex-shrink-0">
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search by name..."
+                placeholder="搜索名称..."
                 value={filterName}
                 onChange={(e) => setFilterName(e.target.value)}
                 className="w-full pl-8 pr-2 py-1 border border-gray-300 rounded-md text-xs"
@@ -458,7 +563,7 @@ export const Step1: React.FC = () => {
             />
           </div>
 
-          <div className="flex-1 overflow-y-auto pr-1">
+          <div className="flex-1 overflow-y-auto pr-1 min-h-0">
             <ul className="space-y-2">
               {filteredSignals.map((signal) => (
                 <li
@@ -538,56 +643,54 @@ export const Step1: React.FC = () => {
                 </li>
               ))}
               {filteredSignals.length === 0 && (
-                <li className="text-sm text-gray-400 text-center py-4 italic">No signal found.</li>
+                <li className="text-sm text-gray-400 text-center py-4 italic">暂无信号</li>
               )}
             </ul>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+      <div className="flex-1 h-full flex flex-col overflow-hidden">
         {displaySignal ? (
           <div
             key={displaySignal.id}
             className={cn(
-              'bg-white rounded-xl shadow-sm border p-6 transition-all hover:shadow-md',
+              'flex-1 bg-white rounded-xl shadow-sm border p-6 overflow-hidden flex flex-col',
               displaySignal.isPreview ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-gray-200'
             )}
           >
-            <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
+            <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-semibold text-gray-900">{displaySignal.name}</h3>
                 {displaySignal.isPreview && (
                   <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-0.5 rounded-full font-medium border border-indigo-200">
-                    Preview
+                    预览
                   </span>
                 )}
                 <SignalInfoTooltip signal={displaySignal} />
               </div>
               <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded text-gray-600">
-                Created: {new Date(displaySignal.createdAt).toLocaleString()}
+                创建时间: {new Date(displaySignal.createdAt).toLocaleString()}
               </span>
             </div>
 
-            <div className="space-y-6">
-              <div className="h-80 flex flex-col">
-                <div className="flex-1">
-                  <TimeSeriesChart
-                    data={displaySignal.data}
-                    features={displaySignal.features}
-                    targetFeature={displaySignal.targetFeature}
-                    title={workflow === 'regression' ? 'Input Features VS Target Feature' : undefined}
-                  />
-                </div>
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 min-h-0 mb-4">
+                <TimeSeriesChart
+                  data={displaySignal.data}
+                  features={displaySignal.features}
+                  targetFeature={displaySignal.targetFeature}
+                  title={workflow === 'regression' ? '输入特征 VS 目标特征' : undefined}
+                />
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="h-72 flex flex-col">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-72 flex-shrink-0">
+                <div className="flex flex-col">
                   <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden">
                     <PCAChart data={displaySignal.data.map((d: any) => ({ ...d, type: 'Data' }))} />
                   </div>
                 </div>
-                <div className="h-72 flex flex-col">
+                <div className="flex flex-col">
                   <div className="flex-1">
                     <FeatureCorrelationHeatmap data={displaySignal.data} features={displaySignal.features} />
                   </div>
@@ -596,10 +699,10 @@ export const Step1: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400">
+          <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center text-gray-400">
             <Activity className="w-16 h-16 mb-4 opacity-20" />
-            <p className="text-lg">No signal to display.</p>
-            <p className="text-sm">Please select a signal on the left or create a new one.</p>
+            <p className="text-lg">暂无信号</p>
+            <p className="text-sm">请在左侧选择或创建新的信号</p>
           </div>
         )}
       </div>

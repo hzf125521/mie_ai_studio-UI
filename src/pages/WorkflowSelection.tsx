@@ -15,7 +15,7 @@ export const WorkflowSelection: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-4">
+    <div className="w-full h-full flex flex-col items-center justify-center p-4">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">检测任务类型</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full">
         {/* Outliers Detection Card */}
