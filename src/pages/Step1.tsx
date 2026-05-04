@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { TimeSeriesChart } from '../components/charts/TimeSeriesChart';
 import { PCAChart } from '../components/charts/PCAChart';
 import { FeatureCorrelationHeatmap } from '../components/charts/FeatureCorrelationHeatmap';
-import { Plus, Trash2, Calendar, Edit2, Check, X, Search, ChevronDown, Info } from 'lucide-react';
+import { Plus, Trash2, Calendar, Edit2, Check, X, Search, ChevronDown, Info, Activity } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { SignalInfoTooltip } from '../components/SignalInfoTooltip';
 
@@ -533,7 +533,7 @@ export const Step1: React.FC = () => {
 
         <div className="border-t border-gray-200 pt-4 mt-4 flex-1 flex flex-col min-h-0 overflow-hidden">
           <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2 flex-shrink-0">
-            <Plus className="w-4 h-4 text-gray-500" /> 特征样本
+            <Activity className="w-4 h-4 text-gray-500" /> 特征样本
           </h3>
 
           <div className="mb-3 space-y-2 flex-shrink-0">
@@ -637,53 +637,34 @@ export const Step1: React.FC = () => {
                   </div>
                 </li>
               ))}
-              {filteredSignals.length === 0 && (
-                <li className="text-sm text-gray-400 text-center py-4 italic">暂无信号</li>
-              )}
             </ul>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 h-full flex flex-col">
+      <div className="flex-1 h-full flex flex-col gap-4 min-h-0">
         {displaySignal ? (
-          <div
-            key={displaySignal.id}
-            className={cn(
-              'flex-1 bg-white rounded-xl shadow-sm border p-6 flex flex-col overflow-visible',
-              displaySignal.isPreview ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-gray-200'
-            )}
-          >
-            <div className="flex-1 flex flex-col overflow-visible">
-              <div className="flex-1 min-h-0 mb-4 overflow-visible">
-                <TimeSeriesChart
-                  data={displaySignal.data}
-                  features={displaySignal.features}
-                  targetFeature={displaySignal.targetFeature}
-                  title={workflow === 'regression' ? '输入特征 VS 目标特征' : undefined}
-                  highlightTime={highlightTime}
-                  onHighlightTime={setHighlightTime}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-72 flex-shrink-0">
-                <div className="flex flex-col overflow-visible">
-                  <div className="flex-1 overflow-visible">
-                    <PCAChart
-                      data={displaySignal.data.map((d: any) => ({ ...d, type: 'Data' }))}
-                      highlightTime={highlightTime}
-                      onHighlightTime={setHighlightTime}
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-col">
-                  <div className="flex-1">
-                    <FeatureCorrelationHeatmap data={displaySignal.data} features={displaySignal.features} />
-                  </div>
-                </div>
-              </div>
+          <>
+            <div key={displaySignal.id} className="flex-shrink-0">
+              <TimeSeriesChart
+                data={displaySignal.data}
+                features={displaySignal.features}
+                targetFeature={displaySignal.targetFeature}
+                title={workflow === 'regression' ? '输入特征 VS 目标特征' : undefined}
+                highlightTime={highlightTime}
+                onHighlightTime={setHighlightTime}
+              />
             </div>
-          </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
+              <PCAChart
+                data={displaySignal.data.map((d: any) => ({ ...d, type: 'Data' }))}
+                highlightTime={highlightTime}
+                onHighlightTime={setHighlightTime}
+              />
+              <FeatureCorrelationHeatmap data={displaySignal.data} features={displaySignal.features} />
+            </div>
+          </>
         ) : (
           <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center text-gray-400">
             <Plus className="w-16 h-16 mb-4 opacity-20" />

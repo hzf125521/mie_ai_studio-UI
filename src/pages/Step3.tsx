@@ -5,7 +5,6 @@ import { CheckCircle, Play, Activity, Edit2, Trash2, Check, X } from 'lucide-rea
 import { cn } from '../lib/utils';
 import { PCAChart } from '../components/charts/PCAChart';
 import { AnomalyChart } from '../components/charts/AnomalyChart';
-import { ThreeDScatterChart } from '../components/charts/ThreeDScatterChart';
 import { TrueVsPredChart } from '../components/charts/TrueVsPredChart';
 import { ResidualDistributionChart } from '../components/charts/ResidualDistributionChart';
 import { FeatureImportanceChart } from '../components/charts/FeatureImportanceChart';
@@ -443,7 +442,6 @@ export const Step3: React.FC = () => {
                 ) : (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="h-72 flex flex-col">
-                      <h3 className="text-sm font-medium text-gray-500 mb-2">Anomaly Score vs Threshold</h3>
                       <div className="flex-1">
                         <AnomalyChart data={mergedValidationData} threshold={0.8} />
                       </div>
@@ -490,8 +488,8 @@ export const Step3: React.FC = () => {
                         onChange={() => handleValidationSignalToggle(signal.id)}
                       />
                       <div>
-                        <span className="text-sm font-medium text-gray-900 block">{new Date(signal.createdAt).toLocaleString()}</span>
-                        <span className="text-xs text-gray-500">{signal.name}</span>
+                        <span className="text-sm font-medium text-gray-900 block">{signal.name}</span>
+                        <span className="text-xs text-gray-500">{new Date(signal.createdAt).toLocaleString()}</span>
                       </div>
                     </div>
                     <SignalInfoTooltip signal={signal} />
@@ -522,28 +520,5 @@ export const Step3: React.FC = () => {
 };
 
 const ChartContainer: React.FC<{ data: any[] }> = ({ data }) => {
-  const [is3D, setIs3D] = useState(false);
-  return (
-    <>
-      <div className="absolute top-2 right-2 z-10 flex space-x-2 text-xs bg-white/80 p-1 rounded shadow-sm">
-        <button
-          onClick={() => setIs3D(false)}
-          className={`px-2 py-1 rounded ${!is3D ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}
-        >
-          2D
-        </button>
-        <button
-          onClick={() => setIs3D(true)}
-          className={`px-2 py-1 rounded ${is3D ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}
-        >
-          3D
-        </button>
-      </div>
-      {is3D ? (
-        <ThreeDScatterChart data={data} />
-      ) : (
-        <PCAChart data={data} />
-      )}
-    </>
-  );
+  return <PCAChart data={data} />;
 };

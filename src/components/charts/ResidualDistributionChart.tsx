@@ -43,7 +43,7 @@ export const ResidualDistributionChart: React.FC<ResidualDistributionChartProps>
           <XAxis dataKey="name" stroke="#9ca3af" fontSize={10} tick={false} label={{ value: 'Residual', position: 'insideBottom', offset: -5 }} />
           <YAxis stroke="#9ca3af" fontSize={12} label={{ value: 'Count', angle: -90, position: 'insideLeft' }} />
           <Tooltip
-            contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb' }}
+            contentStyle={{ backgroundColor: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(4px)', borderRadius: '8px', border: '1px solid #e5e7eb' }}
             itemStyle={{ color: '#374151' }}
           />
           <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />

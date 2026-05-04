@@ -30,7 +30,7 @@ export const FeatureImportanceChart: React.FC<FeatureImportanceChartProps> = ({ 
           <XAxis type="number" stroke="#9ca3af" fontSize={12} />
           <YAxis type="category" dataKey="name" stroke="#9ca3af" fontSize={10} width={100} />
           <Tooltip
-            contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb' }}
+            contentStyle={{ backgroundColor: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(4px)', borderRadius: '8px', border: '1px solid #e5e7eb' }}
             itemStyle={{ color: '#374151' }}
           />
           <Bar dataKey="value" fill="#8b5cf6" radius={[0, 4, 4, 0]}>

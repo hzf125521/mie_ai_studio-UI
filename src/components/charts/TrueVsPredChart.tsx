@@ -35,7 +35,7 @@ export const TrueVsPredChart: React.FC<TrueVsPredChartProps> = ({ data, targetNa
           <XAxis dataKey="time" stroke="#9ca3af" fontSize={12} />
           <YAxis stroke="#9ca3af" fontSize={12} />
           <Tooltip
-            contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb' }}
+            contentStyle={{ backgroundColor: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(4px)', borderRadius: '8px', border: '1px solid #e5e7eb' }}
             itemStyle={{ color: '#374151' }}
             labelFormatter={(label) => `Time: ${label}`}
           />

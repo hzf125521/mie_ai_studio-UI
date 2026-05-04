@@ -5,7 +5,6 @@ import { Plus, Play, CheckCircle, Activity, Edit2, Trash2, Check, X, Rocket, Eye
 import { cn } from '../lib/utils';
 import { PCAChart } from '../components/charts/PCAChart';
 import { AnomalyChart } from '../components/charts/AnomalyChart';
-import { ThreeDScatterChart } from '../components/charts/ThreeDScatterChart';
 import { TrueVsPredChart } from '../components/charts/TrueVsPredChart';
 import { ResidualDistributionChart } from '../components/charts/ResidualDistributionChart';
 import { FeatureImportanceChart } from '../components/charts/FeatureImportanceChart';
@@ -13,30 +12,7 @@ import { SignalInfoTooltip } from '../components/SignalInfoTooltip';
 import { ModelList } from '../components/ModelList';
 
 const ChartContainer: React.FC<{ data: any[] }> = ({ data }) => {
-  const [is3D, setIs3D] = useState(false);
-  return (
-    <>
-      <div className="absolute top-2 right-2 z-10 flex space-x-2 text-xs bg-white/80 p-1 rounded shadow-sm">
-        <button
-          onClick={() => setIs3D(false)}
-          className={`px-2 py-1 rounded ${!is3D ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}
-        >
-          2D
-        </button>
-        <button
-          onClick={() => setIs3D(true)}
-          className={`px-2 py-1 rounded ${is3D ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}
-        >
-          3D
-        </button>
-      </div>
-      {is3D ? (
-        <ThreeDScatterChart data={data} />
-      ) : (
-        <PCAChart data={data} />
-      )}
-    </>
-  );
+  return <PCAChart data={data} />;
 };
 
 export const StepModelTrainingValidation: React.FC = () => {
@@ -605,7 +581,6 @@ export const StepModelTrainingValidation: React.FC = () => {
                               <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden relative"><ChartContainer data={trainingData} /></div>
                             </div>
                             <div className="h-72 flex flex-col">
-                              <h3 className="text-sm font-medium text-gray-500 mb-2">异常得分 (Anomaly Score)</h3>
                               <div className="flex-1"><AnomalyChart data={trainingData} threshold={0.8} /></div>
                             </div>
                           </div>
@@ -716,7 +691,6 @@ export const StepModelTrainingValidation: React.FC = () => {
                         ) : (
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div className="h-72 flex flex-col">
-                              <h3 className="text-sm font-medium text-gray-500 mb-2">异常得分 vs 阈值 (Anomaly Score vs Threshold)</h3>
                               <div className="flex-1"><AnomalyChart data={validationData} threshold={0.8} /></div>
                             </div>
                             <div className="h-72 flex flex-col">
@@ -791,7 +765,6 @@ export const StepModelTrainingValidation: React.FC = () => {
                         ) : (
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div className="h-80 flex flex-col">
-                              <h3 className="text-sm font-medium text-gray-500 mb-2">Real-time Anomaly Score</h3>
                               <div className="flex-1">
                                 <AnomalyChart data={realtimeData} threshold={0.8} />
                               </div>
@@ -903,8 +876,8 @@ export const StepModelTrainingValidation: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <input type="checkbox" className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" checked={selectedSignalIds.includes(signal.id)} onChange={() => handleSignalToggle(signal.id)} />
                         <div>
-                          <span className="text-sm font-medium text-gray-900 block">{new Date(signal.createdAt).toLocaleString()}</span>
-                          <span className="text-xs text-gray-500">{signal.name}</span>
+                          <span className="text-sm font-medium text-gray-900 block">{signal.name}</span>
+                          <span className="text-xs text-gray-500">{new Date(signal.createdAt).toLocaleString()}</span>
                         </div>
                       </div>
                       <SignalInfoTooltip signal={signal} />
@@ -990,7 +963,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                   <label key={signal.id} className="flex items-center justify-between p-2 bg-white rounded border border-gray-100 cursor-pointer hover:bg-indigo-50">
                     <div className="flex items-center gap-3">
                       <input type="checkbox" className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" checked={selectedValidationSignalIds.includes(signal.id)} onChange={() => handleValidationSignalToggle(signal.id)} />
-                      <div><span className="text-sm font-medium text-gray-900 block">{new Date(signal.createdAt).toLocaleString()}</span><span className="text-xs text-gray-500">{signal.name}</span></div>
+                      <div><span className="text-sm font-medium text-gray-900 block">{signal.name}</span><span className="text-xs text-gray-500">{new Date(signal.createdAt).toLocaleString()}</span></div>
                     </div>
                     <SignalInfoTooltip signal={signal} />
                   </label>

@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   ZAxis,
 } from 'recharts';
-import { Info } from 'lucide-react';
+
 
 interface PCAChartProps {
   data: any[];
@@ -142,22 +142,36 @@ export const PCAChart: React.FC<PCAChartProps> = ({ data, highlightTime, onHighl
 
     const tooltipWidth = 160;
     const tooltipHeight = 100;
+    const gap = 12;
 
-    let left = px + 12;
-    let top = py - tooltipHeight / 2;
+    const spaceRight = chartAreaWidth - px;
+    const spaceLeft = px;
+    const spaceBottom = chartAreaHeight - py;
+    const spaceTop = py;
 
-    if (left + tooltipWidth > chartAreaWidth - 5) {
-      left = px - tooltipWidth - 12;
+    let left: number;
+    let top: number;
+
+    if (spaceRight >= tooltipWidth + gap) {
+      left = px + gap;
+    } else if (spaceLeft >= tooltipWidth + gap) {
+      left = px - tooltipWidth - gap;
+    } else {
+      left = Math.max(5, Math.min(px + gap, chartAreaWidth - tooltipWidth - 5));
     }
-    if (left < 5) {
-      left = 5;
+
+    if (spaceBottom >= tooltipHeight / 2 && spaceTop >= tooltipHeight / 2) {
+      top = py - tooltipHeight / 2;
+    } else if (spaceTop >= tooltipHeight + gap) {
+      top = py - tooltipHeight - gap;
+    } else if (spaceBottom >= tooltipHeight + gap) {
+      top = py + gap;
+    } else {
+      top = Math.max(5, Math.min(py + gap, chartAreaHeight - tooltipHeight - 5));
     }
-    if (top < 5) {
-      top = 5;
-    }
-    if (top + tooltipHeight > chartAreaHeight - 5) {
-      top = chartAreaHeight - tooltipHeight - 5;
-    }
+
+    left = Math.max(5, Math.min(left, chartAreaWidth - tooltipWidth - 5));
+    top = Math.max(5, Math.min(top, chartAreaHeight - tooltipHeight - 5));
 
     return { left, top };
   }, [highlightPixelPos, chartAreaWidth, chartAreaHeight]);
@@ -201,23 +215,9 @@ export const PCAChart: React.FC<PCAChartProps> = ({ data, highlightTime, onHighl
   }, []);
 
   return (
-    <div className="h-full w-full bg-white rounded-lg p-4 relative flex flex-col overflow-visible">
+    <div className="h-full w-full bg-white rounded-lg shadow-sm border border-gray-200 p-4 relative flex flex-col overflow-visible">
       <div className="flex items-center gap-1.5 mb-2 flex-shrink-0">
         <h3 className="text-sm font-medium text-gray-500">2D-PCA</h3>
-        <div
-          className="relative"
-          onMouseEnter={() => setShowInfo(true)}
-          onMouseLeave={() => setShowInfo(false)}
-        >
-          <Info className="w-3.5 h-3.5 text-gray-400 hover:text-indigo-500 cursor-help" />
-          {showInfo && (
-            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg z-50 pointer-events-none">
-              <p className="font-medium text-gray-300 mb-1">2D-PCA 说明</p>
-              <p>将高维特征数据通过主成分分析降维至二维空间，每个散点代表一个时间采样点。空间距离越近，特征模式越相似。可辅助观察数据聚类和异常点分布。</p>
-              <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-            </div>
-          )}
-        </div>
       </div>
 
       <div className="flex-1 min-h-0 relative overflow-visible" ref={chartAreaRef}>
@@ -251,7 +251,7 @@ export const PCAChart: React.FC<PCAChartProps> = ({ data, highlightTime, onHighl
                 if (active && payload && payload.length) {
                   const d = payload[0].payload;
                   return (
-                    <div className="bg-white/95 backdrop-blur-sm border border-gray-200 shadow-xl rounded-lg p-3 min-w-[140px]">
+                    <div className="bg-white/50 backdrop-blur-sm border border-gray-200 shadow-xl rounded-lg p-3 min-w-[140px]">
                       <p className="text-xs text-gray-500 mb-1.5 font-medium border-b border-gray-100 pb-1.5">
                         {d.time != null ? formatTimestamp(d.time) : ''}
                       </p>
@@ -306,32 +306,9 @@ export const PCAChart: React.FC<PCAChartProps> = ({ data, highlightTime, onHighl
           </ScatterChart>
         </ResponsiveContainer>
 
-        {highlightPoint && !isHovering && highlightPixelPos && (
-          <svg
-            className="absolute inset-0 w-full h-full pointer-events-none z-20"
-            style={{ overflow: 'visible' }}
-          >
-            <circle
-              cx={highlightPixelPos.px}
-              cy={highlightPixelPos.py}
-              r={10}
-              fill="#6366f1"
-              opacity={0.2}
-            />
-            <circle
-              cx={highlightPixelPos.px}
-              cy={highlightPixelPos.py}
-              r={6}
-              fill="#4f46e5"
-              stroke="#3730a3"
-              strokeWidth={2}
-            />
-          </svg>
-        )}
-
         {highlightPoint && !isHovering && tooltipPosition && (
           <div
-            className="absolute bg-white/95 backdrop-blur-sm border border-indigo-200 shadow-xl rounded-lg p-3 min-w-[140px] z-30 pointer-events-none"
+            className="absolute bg-white/50 backdrop-blur-sm border border-indigo-200 shadow-xl rounded-lg p-3 min-w-[140px] z-30 pointer-events-none"
             style={{ left: tooltipPosition.left, top: tooltipPosition.top }}
           >
             <p className="text-xs text-gray-500 mb-1.5 font-medium border-b border-gray-100 pb-1.5">

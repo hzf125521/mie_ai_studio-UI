@@ -214,17 +214,18 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   }, [highlightDataPoint, containerWidth, timeDomain]);
 
   const handleMouseMove = useCallback((state: any) => {
-    if (state?.activePayload?.length) {
-      const pointTime = state.activePayload[0]?.payload?.time;
-      if (pointTime != null) {
+    if (state?.isTooltipActive && state?.activeLabel != null) {
+      const ts = typeof state.activeLabel === 'number'
+        ? state.activeLabel
+        : new Date(state.activeLabel).getTime();
+      if (Number.isFinite(ts)) {
         setIsHovering(true);
-        const ts = typeof pointTime === 'number' ? pointTime : new Date(pointTime).getTime();
         onHighlightTime?.(ts);
       }
     }
   }, [onHighlightTime]);
 
-  const handleMouseLeave = useCallback(() => {
+  const handleMouseLeave = useCallback((state: any) => {
     setIsHovering(false);
     onHighlightTime?.(null);
   }, [onHighlightTime]);
@@ -250,7 +251,7 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
                 mode === 'raw' ? "text-indigo-600" : "text-gray-500 hover:text-gray-700"
               )}
             >
-              Raw
+              原始特征
             </button>
             <button
               onClick={() => setMode('normalized')}
@@ -259,7 +260,7 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
                 mode === 'normalized' ? "text-indigo-600" : "text-gray-500 hover:text-gray-700"
               )}
             >
-              Min-Max
+              归一化特征
             </button>
           </div>
 
@@ -373,7 +374,7 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
                 const timestamp = formatTimestamp(label as number, 'MM-DD HH:mm:ss');
 
                 return (
-                  <div className="bg-white/95 backdrop-blur-sm border border-gray-200 shadow-xl rounded-lg p-3 min-w-[180px]">
+                  <div className="bg-white/75 backdrop-blur-sm border border-gray-200 shadow-xl rounded-lg p-3 min-w-[180px]">
                     <p className="text-xs text-gray-500 mb-2 font-medium border-b border-gray-100 pb-2">
                       {timestamp}
                     </p>
@@ -447,7 +448,7 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 
         {highlightDataPoint && !isHovering && tooltipPosition && (
           <div
-            className="absolute top-8 bg-white/95 backdrop-blur-sm border border-indigo-200 shadow-xl rounded-lg p-3 min-w-[160px] z-30 pointer-events-none"
+            className="absolute top-8 bg-white/75 backdrop-blur-sm border border-indigo-200 shadow-xl rounded-lg p-3 min-w-[160px] z-30 pointer-events-none"
             style={{ left: tooltipPosition.left }}
           >
             <p className="text-xs text-gray-500 mb-2 font-medium border-b border-gray-100 pb-2">
