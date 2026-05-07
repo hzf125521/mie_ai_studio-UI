@@ -10,9 +10,18 @@ import { ResidualDistributionChart } from '../components/charts/ResidualDistribu
 import { FeatureImportanceChart } from '../components/charts/FeatureImportanceChart';
 import { SignalInfoTooltip } from '../components/SignalInfoTooltip';
 import { ModelList } from '../components/ModelList';
+import { DynamicThresholdConfig } from '../types';
 
 const ChartContainer: React.FC<{ data: any[] }> = ({ data }) => {
   return <PCAChart data={data} />;
+};
+
+const defaultDynamicThresholdConfig: DynamicThresholdConfig = {
+  type: 1,
+  method: 'sigma',
+  n_sigma: 3,
+  lower_percentile: null,
+  upper_percentile: null,
 };
 
 export const StepModelTrainingValidation: React.FC = () => {
@@ -57,6 +66,7 @@ export const StepModelTrainingValidation: React.FC = () => {
   const [modelType, setModelType] = useState(workflow === 'regression' ? 'RandomForestRegressor' : 'Autoencoder');
   const [preprocessing, setPreprocessing] = useState({ standardization: true, pca: 0 });
   const [parameters, setParameters] = useState<Record<string, any>>({});
+  const [dynamicThresholdConfig, setDynamicThresholdConfig] = useState<DynamicThresholdConfig>(defaultDynamicThresholdConfig);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
 
@@ -108,6 +118,7 @@ export const StepModelTrainingValidation: React.FC = () => {
     setSelectedSignalIds([]);
     setModelType(workflow === 'regression' ? 'RandomForestRegressor' : 'Autoencoder');
     setPreprocessing({ standardization: true, pca: 0 });
+    setDynamicThresholdConfig(defaultDynamicThresholdConfig);
     setIsAdvancedOpen(false);
   };
 
@@ -164,6 +175,7 @@ export const StepModelTrainingValidation: React.FC = () => {
       workflow: workflow || 'outliers',
       parameters: { ...parameters },
       preprocessing: { ...preprocessing },
+      dynamicThresholdConfig: workflow === 'regression' ? { ...dynamicThresholdConfig } : undefined,
       trainSignalIds: selectedSignalIds,
     };
 
@@ -187,6 +199,11 @@ export const StepModelTrainingValidation: React.FC = () => {
     if (!displayModel) return [];
     return signals.filter(s => displayModel.trainSignalIds?.includes(s.id));
   }, [displayModel, signals]);
+
+  const displayDynamicThresholdConfig = useMemo(
+    () => displayModel?.dynamicThresholdConfig ?? defaultDynamicThresholdConfig,
+    [displayModel]
+  );
 
   const trainingData = useMemo(() => {
     const data = trainingSignals.flatMap(s => s.data);
@@ -518,6 +535,18 @@ export const StepModelTrainingValidation: React.FC = () => {
                             </div>
                           </div>
                           <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {displayModel.workflow === 'regression' && (
+                              <div className="md:col-span-2">
+                                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">动态阈值</span>
+                                <div className="text-xs text-gray-600 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
+                                  <span>阈值类型: {displayDynamicThresholdConfig.type === 1 ? '全局残差阈值' : '以预测值为中心的动态阈值'}</span>
+                                  <span>计算方法: {displayDynamicThresholdConfig.method}</span>
+                                  <span>标准差倍数: {displayDynamicThresholdConfig.n_sigma ?? '未设置'}</span>
+                                  <span>下百分位数: {displayDynamicThresholdConfig.lower_percentile ?? '未设置'}</span>
+                                  <span>上百分位数: {displayDynamicThresholdConfig.upper_percentile ?? '未设置'}</span>
+                                </div>
+                              </div>
+                            )}
                             <div>
                               <span className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">训练信号</span>
                               <div className="flex flex-wrap gap-2">
@@ -941,6 +970,103 @@ export const StepModelTrainingValidation: React.FC = () => {
                       )}
                     </div>
                   </section>
+
+                  {workflow === 'regression' && (
+                    <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
+                      <h5 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                        <Settings2 className="w-4 h-4 text-indigo-500" />
+                        动态阈值
+                      </h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">动态阈值类型</label>
+                          <select
+                            value={dynamicThresholdConfig.type}
+                            onChange={(e) => setDynamicThresholdConfig({
+                              ...dynamicThresholdConfig,
+                              type: Number(e.target.value) as 1 | 2,
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                          >
+                            <option value={1}>全局残差阈值</option>
+                            <option value={2}>以预测值为中心的动态阈值</option>
+                          </select>
+                          <p className="mt-1 text-xs text-gray-500">1：全局残差阈值，2：以预测值为中心的动态阈值</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">阈值计算方法</label>
+                          <select
+                            value={dynamicThresholdConfig.method}
+                            onChange={(e) => {
+                              const method = e.target.value as DynamicThresholdConfig['method'];
+                              setDynamicThresholdConfig({
+                                ...dynamicThresholdConfig,
+                                method,
+                                n_sigma: method === 'sigma' ? (dynamicThresholdConfig.n_sigma ?? 3) : null,
+                                lower_percentile: method === 'percentile' ? dynamicThresholdConfig.lower_percentile : null,
+                                upper_percentile: method === 'percentile' ? dynamicThresholdConfig.upper_percentile : null,
+                              });
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
+                          >
+                            <option value="sigma">sigma</option>
+                            <option value="percentile">percentile</option>
+                          </select>
+                          <p className="mt-1 text-xs text-gray-500">sigma：基于残差标准差倍数；percentile：基于残差分位数区间</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">标准差倍数</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            value={dynamicThresholdConfig.n_sigma ?? ''}
+                            disabled={dynamicThresholdConfig.method !== 'sigma'}
+                            onChange={(e) => setDynamicThresholdConfig({
+                              ...dynamicThresholdConfig,
+                              n_sigma: e.target.value === '' ? null : parseFloat(e.target.value),
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white disabled:bg-gray-100 disabled:text-gray-400"
+                          />
+                          <p className="mt-1 text-xs text-gray-500">仅当 method=sigma 时生效</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">下百分位数</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="50"
+                            step="0.1"
+                            value={dynamicThresholdConfig.lower_percentile ?? ''}
+                            disabled={dynamicThresholdConfig.method !== 'percentile'}
+                            onChange={(e) => setDynamicThresholdConfig({
+                              ...dynamicThresholdConfig,
+                              lower_percentile: e.target.value === '' ? null : parseFloat(e.target.value),
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white disabled:bg-gray-100 disabled:text-gray-400"
+                          />
+                          <p className="mt-1 text-xs text-gray-500">仅当 method=percentile 时生效，范围 0-50</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1">上百分位数</label>
+                          <input
+                            type="number"
+                            min="50"
+                            max="100"
+                            step="0.1"
+                            value={dynamicThresholdConfig.upper_percentile ?? ''}
+                            disabled={dynamicThresholdConfig.method !== 'percentile'}
+                            onChange={(e) => setDynamicThresholdConfig({
+                              ...dynamicThresholdConfig,
+                              upper_percentile: e.target.value === '' ? null : parseFloat(e.target.value),
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white disabled:bg-gray-100 disabled:text-gray-400"
+                          />
+                          <p className="mt-1 text-xs text-gray-500">仅当 method=percentile 时生效，范围 50-100</p>
+                        </div>
+                      </div>
+                    </section>
+                  )}
                 </div>
               </div>
             </div>

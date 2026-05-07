@@ -12,6 +12,14 @@ export interface Signal {
 
 export type WorkflowType = 'outliers' | 'regression';
 
+export interface DynamicThresholdConfig {
+  type: 1 | 2;
+  method: 'sigma' | 'percentile';
+  n_sigma: number | null;
+  lower_percentile: number | null;
+  upper_percentile: number | null;
+}
+
 export interface Device {
   id: string;
   name: string;
@@ -31,6 +39,7 @@ export interface Model {
     standardization: boolean;
     pca: number;
   };
+  dynamicThresholdConfig?: DynamicThresholdConfig;
   metrics?: {
     roc?: number;
     precision?: number;
