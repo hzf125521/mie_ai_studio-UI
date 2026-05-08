@@ -31,6 +31,7 @@ export interface Model {
   name: string;
   deviceId?: string;
   createdAt: string;
+  deployedAt?: string | null;
   status: 'training' | 'completed' | 'failed';
   type: string;
   workflow: WorkflowType;
