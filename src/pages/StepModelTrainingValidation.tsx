@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Modal } from '../components/ui/Modal';
 import { Plus, Play, CheckCircle, Edit2, Trash2, Check, X, Rocket, ChevronDown, Settings2, SlidersHorizontal, Radio } from 'lucide-react';
@@ -886,6 +886,7 @@ export const StepModelTrainingValidation: React.FC = () => {
                           </select>
                           <p className="mt-1 text-xs text-gray-500">sigma：基于残差标准差倍数；percentile：基于残差分位数区间</p>
                         </div>
+                        {dynamicThresholdConfig.method === 'sigma' && (
                         <div>
                           <label className="block text-xs font-medium text-gray-500 mb-1">标准差倍数</label>
                           <input
@@ -893,15 +894,16 @@ export const StepModelTrainingValidation: React.FC = () => {
                             min="0"
                             step="0.1"
                             value={dynamicThresholdConfig.n_sigma ?? ''}
-                            disabled={dynamicThresholdConfig.method !== 'sigma'}
                             onChange={(e) => setDynamicThresholdConfig({
                               ...dynamicThresholdConfig,
                               n_sigma: e.target.value === '' ? null : parseFloat(e.target.value),
                             })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white disabled:bg-gray-100 disabled:text-gray-400"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
                           />
-                          <p className="mt-1 text-xs text-gray-500">仅当 method=sigma 时生效</p>
                         </div>
+                        )}
+                        {dynamicThresholdConfig.method === 'percentile' && (
+                        <>
                         <div>
                           <label className="block text-xs font-medium text-gray-500 mb-1">下百分位数</label>
                           <input
@@ -910,14 +912,12 @@ export const StepModelTrainingValidation: React.FC = () => {
                             max="50"
                             step="0.1"
                             value={dynamicThresholdConfig.lower_percentile ?? ''}
-                            disabled={dynamicThresholdConfig.method !== 'percentile'}
                             onChange={(e) => setDynamicThresholdConfig({
                               ...dynamicThresholdConfig,
                               lower_percentile: e.target.value === '' ? null : parseFloat(e.target.value),
                             })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white disabled:bg-gray-100 disabled:text-gray-400"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
                           />
-                          <p className="mt-1 text-xs text-gray-500">仅当 method=percentile 时生效，范围 0-50</p>
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-gray-500 mb-1">上百分位数</label>
@@ -927,15 +927,15 @@ export const StepModelTrainingValidation: React.FC = () => {
                             max="100"
                             step="0.1"
                             value={dynamicThresholdConfig.upper_percentile ?? ''}
-                            disabled={dynamicThresholdConfig.method !== 'percentile'}
                             onChange={(e) => setDynamicThresholdConfig({
                               ...dynamicThresholdConfig,
                               upper_percentile: e.target.value === '' ? null : parseFloat(e.target.value),
                             })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white disabled:bg-gray-100 disabled:text-gray-400"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white"
                           />
-                          <p className="mt-1 text-xs text-gray-500">仅当 method=percentile 时生效，范围 50-100</p>
                         </div>
+                        </>
+                        )}
                       </div>
                     </section>
                   )}
