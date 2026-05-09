@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { TimeSeriesChart } from '../components/charts/TimeSeriesChart';
 import { PCAChart } from '../components/charts/PCAChart';
 import { FeatureCorrelationHeatmap } from '../components/charts/FeatureCorrelationHeatmap';
-import { Plus, Trash2, Calendar, Edit2, Check, X, Search, ChevronDown, Info, Activity } from 'lucide-react';
+import { Plus, Trash2, Calendar, Edit2, Check, X, Search, ChevronDown, Info, Activity, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { SignalInfoTooltip } from '../components/SignalInfoTooltip';
 
@@ -276,6 +276,8 @@ const TargetFeatureSelect: React.FC<{
   );
 };
 
+const analysisCompletedSignalIds = new Set<string>();
+
 export const Step1: React.FC = () => {
   const { signals, addSignal, updateSignal, removeSignal, workflow, models, validations } = useApp();
   const [selectedSignalId, setSelectedSignalId] = useState<string | null>(null);
@@ -289,6 +291,8 @@ export const Step1: React.FC = () => {
   const [highlightTime, setHighlightTime] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
   const [hoveredSignalId, setHoveredSignalId] = useState<string | null>(null);
+  const [analysisChartsReady, setAnalysisChartsReady] = useState(false);
+  const [showAnalysisInfo, setShowAnalysisInfo] = useState(false);
 
   useEffect(() => {
     setPreviewSignal(null);
@@ -331,6 +335,22 @@ export const Step1: React.FC = () => {
     }
     return [...signals].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0] || null;
   }, [previewSignal, selectedSignalId, signals]);
+
+  useEffect(() => {
+    if (!displaySignal) return;
+
+    if (analysisCompletedSignalIds.has(displaySignal.id)) {
+      setAnalysisChartsReady(true);
+      return;
+    }
+
+    setAnalysisChartsReady(false);
+    const timer = setTimeout(() => {
+      setAnalysisChartsReady(true);
+      analysisCompletedSignalIds.add(displaySignal.id);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [displaySignal]);
 
   const handleFeatureChange = (pointId: string, features: string[]) => {
     setSelectedFeatures(prev => ({ ...prev, [pointId]: features }));
@@ -656,13 +676,40 @@ export const Step1: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
-              <PCAChart
-                data={displaySignal.data.map((d: any) => ({ ...d, type: 'Data' }))}
-                highlightTime={highlightTime}
-                onHighlightTime={setHighlightTime}
-              />
-              <FeatureCorrelationHeatmap data={displaySignal.data} features={displaySignal.features} />
+            <div className="flex-1 min-h-0 bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col overflow-visible">
+              <div className="flex items-center gap-1.5 mb-3 flex-shrink-0">
+                <h3 className="text-sm font-medium text-gray-500">特征分析图表</h3>
+                <div
+                  className="relative"
+                  onMouseEnter={() => setShowAnalysisInfo(true)}
+                  onMouseLeave={() => setShowAnalysisInfo(false)}
+                >
+                  <Info className="w-3.5 h-3.5 text-gray-400 hover:text-indigo-500 cursor-help" />
+                  {showAnalysisInfo && (
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-72 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg z-50 pointer-events-none">
+                      <p>特征分析校验会对数据进行处理，例如剔除部分空值，这可能会导致部分时间戳丢失，属于正常现象！</p>
+                      <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {analysisChartsReady || (displaySignal && analysisCompletedSignalIds.has(displaySignal.id)) ? (
+                  <>
+                    <PCAChart
+                      data={displaySignal.data.map((d: any) => ({ ...d, type: 'Data' }))}
+                      highlightTime={highlightTime}
+                      onHighlightTime={setHighlightTime}
+                    />
+                    <FeatureCorrelationHeatmap data={displaySignal.data} features={displaySignal.features} />
+                  </>
+                ) : (
+                  <div className="col-span-full h-full w-full flex flex-col items-center justify-center gap-3">
+                    <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                    <p className="text-sm text-gray-400">特征数据分析校验中，请稍等！</p>
+                  </div>
+                )}
+              </div>
             </div>
           </>
         ) : (
