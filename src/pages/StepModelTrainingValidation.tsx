@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { Modal } from '../components/ui/Modal';
-import { Plus, Play, CheckCircle, Edit2, Trash2, Check, X, Rocket, ChevronDown, Settings2, SlidersHorizontal, Radio } from 'lucide-react';
+import { Plus, Play, CheckCircle, Edit2, Trash2, Check, X, Rocket, ChevronDown, Settings2, SlidersHorizontal, Radio, Info } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { PCAChart } from '../components/charts/PCAChart';
 import { AnomalyChart } from '../components/charts/AnomalyChart';
@@ -65,6 +66,12 @@ export const StepModelTrainingValidation: React.FC = () => {
   const [parameters, setParameters] = useState<Record<string, any>>({});
   const [dynamicThresholdConfig, setDynamicThresholdConfig] = useState<DynamicThresholdConfig>(defaultDynamicThresholdConfig);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [showThresholdTypeInfo, setShowThresholdTypeInfo] = useState(false);
+  const [showThresholdMethodInfo, setShowThresholdMethodInfo] = useState(false);
+  const [thresholdTypeCoords, setThresholdTypeCoords] = useState({ top: 0, left: 0 });
+  const [thresholdMethodCoords, setThresholdMethodCoords] = useState({ top: 0, left: 0 });
+  const thresholdTypeIconRef = useRef<HTMLDivElement>(null);
+  const thresholdMethodIconRef = useRef<HTMLDivElement>(null);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
 
   // ==================== VALIDATION STATE ====================
@@ -87,7 +94,39 @@ export const StepModelTrainingValidation: React.FC = () => {
   }, [selectedModelId, models]);
 
   // ==================== TRAINING LOGIC ====================
-  
+
+  useEffect(() => {
+    if (!showThresholdTypeInfo) return;
+    const update = () => {
+      if (thresholdTypeIconRef.current) {
+        const rect = thresholdTypeIconRef.current.getBoundingClientRect();
+        setThresholdTypeCoords({ top: rect.top, left: rect.left + rect.width / 2 });
+      }
+    };
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [showThresholdTypeInfo]);
+
+  useEffect(() => {
+    if (!showThresholdMethodInfo) return;
+    const update = () => {
+      if (thresholdMethodIconRef.current) {
+        const rect = thresholdMethodIconRef.current.getBoundingClientRect();
+        setThresholdMethodCoords({ top: rect.top, left: rect.left + rect.width / 2 });
+      }
+    };
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [showThresholdMethodInfo]);
+
   // Set default parameters when model type changes
   useEffect(() => {
     switch (modelType) {
@@ -379,7 +418,8 @@ export const StepModelTrainingValidation: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full flex gap-6 flex-col">
+    <>
+      <div className="w-full h-full flex gap-6 flex-col">
        {/* Top Switcher */}
        <div className="flex bg-white p-1 rounded-lg shadow-sm border border-gray-200 w-full mb-2">
          <button
@@ -851,7 +891,23 @@ export const StepModelTrainingValidation: React.FC = () => {
                       </h5>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">动态阈值类型</label>
+                          <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1">
+                            动态阈值类型
+                            <div
+                              ref={thresholdTypeIconRef}
+                              className="relative inline-block"
+                              onMouseEnter={() => {
+                                if (thresholdTypeIconRef.current) {
+                                  const rect = thresholdTypeIconRef.current.getBoundingClientRect();
+                                  setThresholdTypeCoords({ top: rect.top, left: rect.left + rect.width / 2 });
+                                }
+                                setShowThresholdTypeInfo(true);
+                              }}
+                              onMouseLeave={() => setShowThresholdTypeInfo(false)}
+                            >
+                              <Info className="w-3.5 h-3.5 text-gray-400 hover:text-indigo-500 cursor-help" />
+                            </div>
+                          </label>
                           <select
                             value={dynamicThresholdConfig.type}
                             onChange={(e) => setDynamicThresholdConfig({
@@ -863,10 +919,25 @@ export const StepModelTrainingValidation: React.FC = () => {
                             <option value={1}>全局残差阈值</option>
                             <option value={2}>以预测值为中心的动态阈值</option>
                           </select>
-                          <p className="mt-1 text-xs text-gray-500">1：全局残差阈值，2：以预测值为中心的动态阈值</p>
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">阈值计算方法</label>
+                          <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1">
+                            阈值计算方法
+                            <div
+                              ref={thresholdMethodIconRef}
+                              className="relative inline-block"
+                              onMouseEnter={() => {
+                                if (thresholdMethodIconRef.current) {
+                                  const rect = thresholdMethodIconRef.current.getBoundingClientRect();
+                                  setThresholdMethodCoords({ top: rect.top, left: rect.left + rect.width / 2 });
+                                }
+                                setShowThresholdMethodInfo(true);
+                              }}
+                              onMouseLeave={() => setShowThresholdMethodInfo(false)}
+                            >
+                              <Info className="w-3.5 h-3.5 text-gray-400 hover:text-indigo-500 cursor-help" />
+                            </div>
+                          </label>
                           <select
                             value={dynamicThresholdConfig.method}
                             onChange={(e) => {
@@ -884,7 +955,6 @@ export const StepModelTrainingValidation: React.FC = () => {
                             <option value="sigma">sigma</option>
                             <option value="percentile">percentile</option>
                           </select>
-                          <p className="mt-1 text-xs text-gray-500">sigma：基于残差标准差倍数；percentile：基于残差分位数区间</p>
                         </div>
                         {dynamicThresholdConfig.method === 'sigma' && (
                         <div>
@@ -976,5 +1046,38 @@ export const StepModelTrainingValidation: React.FC = () => {
         </div>
       </Modal>
     </div>
-  );
+    {showThresholdTypeInfo && createPortal(
+      <div
+        className="fixed z-[9999] pointer-events-none"
+        style={{
+          top: thresholdTypeCoords.top - 8,
+          left: thresholdTypeCoords.left,
+          transform: 'translate(-50%, -100%)',
+        }}
+      >
+        <div className="w-64 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg relative">
+          <p>1：全局残差阈值，2：以预测值为中心的动态阈值</p>
+          <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+        </div>
+      </div>,
+      document.body
+    )}
+    {showThresholdMethodInfo && createPortal(
+      <div
+        className="fixed z-[9999] pointer-events-none"
+        style={{
+          top: thresholdMethodCoords.top - 8,
+          left: thresholdMethodCoords.left,
+          transform: 'translate(-50%, -100%)',
+        }}
+      >
+        <div className="w-64 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg relative">
+          <p>sigma：基于残差标准差倍数；percentile：基于残差分位数区间</p>
+          <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+        </div>
+      </div>,
+      document.body
+    )}
+  </>
+);
 };
